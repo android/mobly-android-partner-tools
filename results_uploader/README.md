@@ -19,20 +19,10 @@ To start using the Results Uploader, you need to be able to access the shared
 Google Cloud Storage bucket:
 1. Confirm/request access to the shared GCP project with your Google contact.
    The Googler will give you a project name to use.
-2. Install the gcloud CLI from https://cloud.google.com/sdk/docs/install
-    * If installation fails with the above method, try the alternative linked
-      [here](https://cloud.google.com/sdk/docs/downloads-versioned-archives#installation_instructions).
-3. Run the following commands in the terminal:
-    ```bash
-    gcloud auth login
-    gcloud auth application-default login
-    gcloud config set project <gcp_project>
-    gcloud auth application-default set-quota-project <gcp_project>
-    ```
-    * When prompted to log in on your browser, follow the instruction to log in
-      to Cloud SDK. Use the same account for which you requested access in
-      step 1.
-4. Download the provided `results_uploader-{version}-py3-none-any.whl`.
+2. Download the provided `results_uploader-{version}-py3-none-any.whl`.
+3. Install the gcloud CLI from https://cloud.google.com/sdk/docs/install
+   * If installation fails with the above method, try the alternative linked
+     [here](https://cloud.google.com/sdk/docs/downloads-versioned-archives#installation_instructions).
 
 ## How to upload results
 1. Create a new terminal and run the following installation commands (first-time

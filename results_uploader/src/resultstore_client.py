@@ -40,6 +40,7 @@ class Status(enum.Enum):
     PASSED = 'PASSED'
     FAILED = 'FAILED'
     SKIPPED = 'SKIPPED'
+    FLAKY = 'FLAKY'
     UNKNOWN = 'UNKNOWN'
 
 
@@ -395,7 +396,7 @@ class ResultstoreClient:
         )
         res = request.execute(http=self._http)
         logging.debug('invocations.finalize: %s', res)
-        print('-' * 20)
+        print('-' * 50)
         # Make the URL show test cases regardless of status by default.
         show_statuses = (
             'showStatuses='

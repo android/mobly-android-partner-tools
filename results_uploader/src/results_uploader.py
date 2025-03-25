@@ -17,6 +17,7 @@
 """CLI uploader for Mobly test results to Resultstore."""
 
 import argparse
+import collections
 import dataclasses
 import datetime
 from importlib import resources
@@ -43,8 +44,6 @@ with warnings.catch_warnings():
     warnings.simplefilter('ignore')
     from google.cloud.storage import transfer_manager
 
-logging.getLogger('googleapiclient').setLevel(logging.WARNING)
-logging.getLogger('google.auth').setLevel(logging.ERROR)
 
 _RESULTSTORE_SERVICE_NAME = 'resultstore'
 _API_VERSION = 'v2'
@@ -82,6 +81,29 @@ class _TestResultInfo:
     target_id: str | None = None
 
 
+def _setup_logging(verbose: bool) -> None:
+    """Configures the logging for this module."""
+    debug_log_path = tempfile.mkstemp('_upload_log.txt')[1]
+    file_handler = logging.FileHandler(debug_log_path)
+    file_handler.setLevel(logging.DEBUG)
+    file_handler.setFormatter(logging.Formatter(
+        '%(asctime)s %(levelname)s [%(module)s.%(funcName)s] %(message)s'
+    ))
+    stream_handler = logging.StreamHandler()
+    stream_handler.setLevel(logging.DEBUG if verbose else logging.INFO)
+    stream_handler.setFormatter(
+        logging.Formatter('%(levelname)s: %(message)s'))
+    logging.basicConfig(
+        level=logging.DEBUG,
+        handlers=(file_handler, stream_handler)
+    )
+
+    logging.getLogger('googleapiclient').setLevel(logging.WARNING)
+    logging.getLogger('google.auth').setLevel(logging.ERROR)
+    logging.info('Debug logs are saved to %s', debug_log_path)
+    print('-' * 50)
+
+
 def _gcloud_login_and_set_project() -> None:
     """Get gcloud application default creds and set the desired GCP project."""
     logging.info('No credentials found. Performing initial setup.')
@@ -97,7 +119,7 @@ def _gcloud_login_and_set_project() -> None:
         logging.exception(
             'Failed to run `gcloud` commands. Please install the `gcloud` CLI!')
     logging.info('Initial setup complete!')
-    print('-' * 20)
+    print('-' * 50)
 
 
 def _get_project_number(project_id: str) -> str:
@@ -145,6 +167,97 @@ def _convert_results(
     return test_result_info
 
 
+def _aggregate_testcase_iteration_results(
+        iteration_results: list[str]):
+    """Determines the aggregate result from a list of test case iterations.
+
+    This is only applicable to test cases with repeat/retry.
+    """
+    iterations_failed = [
+        result == _Status.FAILED for result in iteration_results
+        if result != _Status.SKIPPED
+    ]
+    # Skip if all iterations skipped
+    if not iterations_failed:
+        return _Status.SKIPPED
+    # Fail if all iterations failed
+    if all(iterations_failed):
+        return _Status.FAILED
+    # Flaky if some iterations failed
+    if any(iterations_failed):
+        return _Status.FLAKY
+    # Pass otherwise
+    return _Status.PASSED
+
+
+def _aggregate_subtest_results(subtest_results: list[str]):
+    """Determines the aggregate result from a list of subtest nodes.
+
+    This is used to provide a test class result based on the test cases, or
+    a test suite result based on the test classes.
+    """
+    # Skip if all subtests skipped
+    if all([result == _Status.SKIPPED for result in subtest_results]):
+        return _Status.SKIPPED
+
+    any_flaky = False
+    for result in subtest_results:
+        # Fail if any subtest failed
+        if result == _Status.FAILED:
+            return _Status.FAILED
+        # Record flaky subtest
+        if result == _Status.FLAKY:
+            any_flaky = True
+    # Flaky if any subtest is flaky, pass otherwise
+    return _Status.FLAKY if any_flaky else _Status.PASSED
+
+
+def _get_test_status_from_xml(mobly_suite_element: ElementTree.Element):
+    """Gets the overall status from the test XML."""
+    test_class_elements = mobly_suite_element.findall(
+        f'./{_ResultstoreTreeTags.TESTSUITE.value}')
+    test_class_results = []
+    for test_class_element in test_class_elements:
+        test_case_results = []
+        test_case_iteration_results = collections.defaultdict(list)
+        test_case_elements = test_class_element.findall(
+            f'./{_ResultstoreTreeTags.TESTCASE.value}')
+        for test_case_element in test_case_elements:
+            result = _Status.PASSED
+            if test_case_element.get(
+                    _ResultstoreTreeAttributes.RESULT.value) == 'skipped':
+                result = _Status.SKIPPED
+            if (
+                    test_case_element.find(
+                        f'./{_ResultstoreTreeTags.FAILURE.value}') is not None
+                    or test_case_element.find(
+                        f'./{_ResultstoreTreeTags.ERROR.value}') is not None
+            ):
+                result = _Status.FAILED
+            # Add to iteration results if run as part of a repeat/retry
+            # Otherwise, add to test case results directly
+            if (
+                    test_case_element.get(
+                        _ResultstoreTreeAttributes.RETRY_NUMBER.value) or
+                    test_case_element.get(
+                        _ResultstoreTreeAttributes.REPEAT_NUMBER.value)
+            ):
+                test_case_iteration_results[
+                    test_case_element.get(_ResultstoreTreeAttributes.NAME.value)
+                ].append(result)
+            else:
+                test_case_results.append(result)
+
+        for iteration_result_list in test_case_iteration_results.values():
+            test_case_results.append(
+                _aggregate_testcase_iteration_results(iteration_result_list)
+            )
+        test_class_results.append(
+            _aggregate_subtest_results(test_case_results)
+        )
+    return _aggregate_subtest_results(test_class_results)
+
+
 def _get_test_result_info_from_test_xml(
         test_xml: ElementTree.ElementTree,
 ) -> _TestResultInfo:
@@ -156,24 +269,7 @@ def _get_test_result_info_from_test_xml(
     if mobly_suite_element is None:
         return test_result_info
     # Set aggregate test status
-    test_result_info.status = _Status.PASSED
-    test_class_elements = mobly_suite_element.findall(
-        f'./{_ResultstoreTreeTags.TESTSUITE.value}')
-    failures = int(
-        mobly_suite_element.get(_ResultstoreTreeAttributes.FAILURES.value)
-    )
-    errors = int(
-        mobly_suite_element.get(_ResultstoreTreeAttributes.ERRORS.value))
-    if failures or errors:
-        test_result_info.status = _Status.FAILED
-    else:
-        all_skipped = all([test_case_element.get(
-            _ResultstoreTreeAttributes.RESULT.value) == 'skipped' for
-                           test_class_element in test_class_elements for
-                           test_case_element in test_class_element.findall(
-                f'./{_ResultstoreTreeTags.TESTCASE.value}')])
-        if all_skipped:
-            test_result_info.status = _Status.SKIPPED
+    test_result_info.status = _get_test_status_from_xml(mobly_suite_element)
 
     # Set target ID based on test class names, suite name, and custom run
     # identifier.
@@ -202,6 +298,8 @@ def _get_test_result_info_from_test_xml(
     if suite_name_value:
         target_id = suite_name_value
     else:
+        test_class_elements = mobly_suite_element.findall(
+            f'./{_ResultstoreTreeTags.TESTSUITE.value}')
         test_class_names = [
             test_class_element.get(_ResultstoreTreeAttributes.NAME.value)
             for test_class_element in test_class_elements
@@ -321,7 +419,7 @@ def main():
     parser.add_argument(
         '--gcs_dir',
         help=(
-            'Directory to save test artifacts in GCS. If unspecified or empty,'
+            'Directory to save test artifacts in GCS. If unspecified or empty, '
             'use the current timestamp as the GCS directory name.'
         ),
     )
@@ -343,11 +441,17 @@ def main():
         help='Label to attach to the uploaded result. Can be repeated for '
              'multiple labels.'
     )
-    args = parser.parse_args()
-    logging.basicConfig(
-        format='%(levelname)s: %(message)s',
-        level=(logging.DEBUG if args.verbose else logging.INFO)
+    parser.add_argument(
+        '--no_convert_result',
+        action='store_true',
+        help=(
+            'Upload the files as is, without first converting Mobly results to '
+            'Resultstore\'s format. The source directory must contain at least '
+            'a `test.xml` file, and an `undeclared_outputs` zip or '
+            'subdirectory.')
     )
+    args = parser.parse_args()
+    _setup_logging(args.verbose)
     try:
         _, project_id = google.auth.default()
     except google.auth.exceptions.DefaultCredentialsError:
@@ -369,21 +473,32 @@ def main():
         else args.gcs_dir
     )
     mobly_dir = pathlib.Path(args.mobly_dir).absolute().expanduser()
-    # Generate and upload test.xml and test.log
-    with tempfile.TemporaryDirectory() as tmp:
-        converted_dir = pathlib.Path(tmp).joinpath(gcs_base_dir)
-        converted_dir.mkdir(parents=True)
-        test_result_info = _convert_results(mobly_dir, converted_dir)
+
+    if args.no_convert_result:
+        # Determine the final status based on the test.xml
+        test_xml = ElementTree.parse(mobly_dir.joinpath(_TEST_XML))
+        test_result_info = _get_test_result_info_from_test_xml(test_xml)
+        # Upload the contents of mobly_dir directly
         gcs_files = _upload_dir_to_gcs(
-            converted_dir, gcs_bucket, gcs_base_dir.as_posix(),
+            mobly_dir, gcs_bucket, gcs_base_dir.as_posix(),
             args.gcs_upload_timeout
         )
-    # Upload raw Mobly logs to undeclared_outputs/ subdirectory
-    gcs_files += _upload_dir_to_gcs(
-        mobly_dir, gcs_bucket,
-        gcs_base_dir.joinpath(_UNDECLARED_OUTPUTS).as_posix(),
-        args.gcs_upload_timeout
-    )
+    else:
+        # Generate and upload test.xml and test.log
+        with tempfile.TemporaryDirectory() as tmp:
+            converted_dir = pathlib.Path(tmp).joinpath(gcs_base_dir)
+            converted_dir.mkdir(parents=True)
+            test_result_info = _convert_results(mobly_dir, converted_dir)
+            gcs_files = _upload_dir_to_gcs(
+                converted_dir, gcs_bucket, gcs_base_dir.as_posix(),
+                args.gcs_upload_timeout
+            )
+        # Upload raw Mobly logs to undeclared_outputs/ subdirectory
+        gcs_files += _upload_dir_to_gcs(
+            mobly_dir, gcs_bucket,
+            gcs_base_dir.joinpath(_UNDECLARED_OUTPUTS).as_posix(),
+            args.gcs_upload_timeout
+        )
     _upload_to_resultstore(
         api_key,
         gcs_bucket,

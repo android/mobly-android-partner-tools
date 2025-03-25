@@ -19,7 +19,8 @@ To start using the Results Uploader, you need to be able to access the shared
 Google Cloud Storage bucket:
 1. Confirm/request access to the shared GCP project with your Google contact.
    The Googler will give you a project name to use.
-2. Download the provided `results_uploader-{version}-py3-none-any.whl`.
+2. Download `results_uploader-{version}-py3-none-any.whl` from the latest
+   [Results Uploader release](https://github.com/android/mobly-android-partner-tools/releases).
 3. Install the gcloud CLI from https://cloud.google.com/sdk/docs/install
    * If installation fails with the above method, try the alternative linked
      [here](https://cloud.google.com/sdk/docs/downloads-versioned-archives#installation_instructions).

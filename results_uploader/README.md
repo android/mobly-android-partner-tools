@@ -32,7 +32,7 @@ Google Cloud Storage bucket:
     * When prompted to log in on your browser, follow the instruction to log in
       to Cloud SDK. Use the same account for which you requested access in
       step 1.
-4. Download the provided `results_uploader-{version}.tar.gz`.
+4. Download the provided `results_uploader-{version}-py3-none-any.whl`.
 
 ## How to upload results
 1. Create a new terminal and run the following installation commands (first-time
@@ -43,14 +43,14 @@ Google Cloud Storage bucket:
 
     python3 -m venv venv
     source venv/bin/activate
-    python3 -m pip install results_uploader-{version}.tar.gz
+    python3 -m pip install results_uploader-{version}-py3-none-any.whl
     ```
     ```cmd
     :: on Windows
 
     python -m venv venv
     venv\Scripts\activate
-    python -m pip install results_uploader-{version}.tar.gz
+    python -m pip install results_uploader-{version}-py3-none-any.whl
     ```
 
 2. At the end of a completed test run, you'll see the final lines on the console
@@ -73,6 +73,13 @@ Google Cloud Storage bucket:
 4. If successful, at the end of the upload process you will get a link beginning
    with http://btx.cloud.google.com. Simply share this link to others who
    wish to view your test results.
+
+## Troubleshooting
+*  If the link is missing, or the contents of the link are empty, check the
+   debug logs of the uploader. Its location is shown at the beginning of the 
+   tool's output indicated by `Debug logs are saved to: ...`.
+*  Report any tool issues to Google and attach all tool output, including the
+   debug logs.
 
 ## Additional reference
 

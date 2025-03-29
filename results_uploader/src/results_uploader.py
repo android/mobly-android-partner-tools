@@ -81,6 +81,64 @@ class _TestResultInfo:
     target_id: str | None = None
 
 
+def _parse_args() -> argparse.Namespace:
+    """Parses the command-line arguments."""
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        'mobly_dir',
+        help='Directory on host where Mobly results are stored.',
+    )
+    parser.add_argument(
+        '--gcs_bucket',
+        help='Bucket in GCS where test artifacts are uploaded. If unspecified, '
+             'use the current GCP project name as the bucket name.',
+    )
+    parser.add_argument(
+        '--gcs_dir',
+        help=(
+            'Directory to save test artifacts in GCS. If unspecified or empty, '
+            'use the current timestamp as the GCS directory name.'
+        ),
+    )
+    parser.add_argument(
+        '--gcs_upload_timeout',
+        type=int,
+        default=_GCS_DEFAULT_TIMEOUT_SECS,
+        help=(
+            'Timeout (in seconds) to upload each file to GCS. '
+            f'Default: {_GCS_DEFAULT_TIMEOUT_SECS} seconds.'),
+    )
+    parser.add_argument(
+        '--test_title',
+        help='Custom test title to display in the result UI.'
+    )
+    parser.add_argument(
+        '--label',
+        action='append',
+        help='Label to attach to the uploaded result. Can be repeated for '
+             'multiple labels.'
+    )
+    parser.add_argument(
+        '--no_convert_result',
+        action='store_true',
+        help=(
+            'Upload the files as is, without first converting Mobly results to '
+            'Resultstore\'s format. The source directory must contain at least '
+            'a `test.xml` file, and an `undeclared_outputs` zip or '
+            'subdirectory.')
+    )
+    parser.add_argument(
+        '--reset_gcp_login', action='store_true',
+        help='Resets the GCP credentials for the result upload, so the user is '
+             'prompted for a new login. Use this to change the current project '
+             'ID.'
+    )
+    parser.add_argument(
+        '-v', '--verbose', action='store_true', help='Enable debug logs.'
+    )
+    return parser.parse_args()
+
+
 def _setup_logging(verbose: bool) -> None:
     """Configures the logging for this module."""
     debug_log_path = tempfile.mkstemp('_upload_log.txt')[1]
@@ -104,20 +162,29 @@ def _setup_logging(verbose: bool) -> None:
     print('-' * 50)
 
 
+def _run_gcloud_command(args: list[str]) -> None:
+    """Runs a command with the gcloud CLI."""
+    try:
+        subprocess.check_call(['gcloud'] + args)
+    except FileNotFoundError:
+        logging.error(
+            'Failed to run `gcloud` commands! Please install the `gcloud` CLI '
+            'from https://cloud.google.com/sdk/docs/install\n')
+        raise
+
+
 def _gcloud_login_and_set_project() -> None:
     """Get gcloud application default creds and set the desired GCP project."""
     logging.info('No credentials found. Performing initial setup.')
     project_id = ''
     while not project_id:
         project_id = input('Enter your GCP project ID: ')
-    try:
-        subprocess.run(['gcloud', 'auth', 'application-default', 'login',
-                        '--no-launch-browser'])
-        subprocess.run(['gcloud', 'auth', 'application-default',
-                        'set-quota-project', project_id])
-    except FileNotFoundError:
-        logging.exception(
-            'Failed to run `gcloud` commands. Please install the `gcloud` CLI!')
+    _run_gcloud_command(
+        ['auth', 'application-default', 'login', '--no-launch-browser']
+    )
+    _run_gcloud_command(
+        ['auth', 'application-default', 'set-quota-project', project_id]
+    )
     logging.info('Initial setup complete!')
     print('-' * 50)
 
@@ -403,55 +470,10 @@ def _upload_to_resultstore(
 
 
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        '-v', '--verbose', action='store_true', help='Enable debug logs.'
-    )
-    parser.add_argument(
-        'mobly_dir',
-        help='Directory on host where Mobly results are stored.',
-    )
-    parser.add_argument(
-        '--gcs_bucket',
-        help='Bucket in GCS where test artifacts are uploaded. If unspecified, '
-             'use the current GCP project name as the bucket name.',
-    )
-    parser.add_argument(
-        '--gcs_dir',
-        help=(
-            'Directory to save test artifacts in GCS. If unspecified or empty, '
-            'use the current timestamp as the GCS directory name.'
-        ),
-    )
-    parser.add_argument(
-        '--gcs_upload_timeout',
-        type=int,
-        default=_GCS_DEFAULT_TIMEOUT_SECS,
-        help=(
-            'Timeout (in seconds) to upload each file to GCS. '
-            f'Default: {_GCS_DEFAULT_TIMEOUT_SECS} seconds.'),
-    )
-    parser.add_argument(
-        '--test_title',
-        help='Custom test title to display in the result UI.'
-    )
-    parser.add_argument(
-        '--label',
-        action='append',
-        help='Label to attach to the uploaded result. Can be repeated for '
-             'multiple labels.'
-    )
-    parser.add_argument(
-        '--no_convert_result',
-        action='store_true',
-        help=(
-            'Upload the files as is, without first converting Mobly results to '
-            'Resultstore\'s format. The source directory must contain at least '
-            'a `test.xml` file, and an `undeclared_outputs` zip or '
-            'subdirectory.')
-    )
-    args = parser.parse_args()
+    args = _parse_args()
     _setup_logging(args.verbose)
+    if args.reset_gcp_login:
+        _run_gcloud_command(['auth', 'application-default', 'revoke', '-q'])
     try:
         _, project_id = google.auth.default()
     except google.auth.exceptions.DefaultCredentialsError:

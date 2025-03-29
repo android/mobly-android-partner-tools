@@ -631,6 +631,24 @@ def _process_record(
                 MoblyResultstoreProperties.STACK_TRACE.value,
                 stack_trace,
             )
+
+    extra_errors = entry[records.TestResultEnums.RECORD_EXTRA_ERRORS]
+    if extra_errors is not None:
+        for _, error_details in extra_errors.items():
+            extra_error_element = ElementTree.SubElement(
+                testcase_element, ResultstoreTreeTags.ERROR.value
+            )
+            error_position = error_details[
+                records.TestResultEnums.RECORD_POSITION]
+            extra_error_element.set(
+                ResultstoreTreeAttributes.MESSAGE.value,
+                f'Error occurred at {error_position}.\nDetails: '
+                f'{error_details[records.TestResultEnums.RECORD_DETAILS]}',
+            )
+            stack_trace = error_details[
+                records.TestResultEnums.RECORD_STACKTRACE]
+            if stack_trace is not None:
+                extra_error_element.text = stack_trace
     return testcase_element
 
 

@@ -1,5 +1,16 @@
 # Mobly Results Uploader release history
 
+## 0.7.3 (2025-04-01)
+
+### New
+* Enable the option to reset the stored GCP credentials upon upload with
+  `--reset_gcp_login`, so the user may change their active GCP project.
+
+### Fixes
+* Any extra errors generated in a test's setup/teardown stages are now displayed
+  alongside the test case's results in BTX.
+
+
 ## 0.7.2 (2024-12-13)
 
 ### New

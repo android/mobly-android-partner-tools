@@ -3,9 +3,12 @@ requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "results_uploader"
-version = "0.7.3"
-description = "Tool for uploading Mobly test results to Resultstore web UI."
+name = "mobly-android-partner-tools"
+version = "1.0.0"
+description = """
+Command-line utilities used by Android partners to run packaged Mobly tests and
+upload test results.
+"""
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
@@ -22,4 +25,5 @@ dependencies = [
 ]
 
 [project.scripts]
-results_uploader = "results_uploader:main"
+mobly_runner = "mobly_runner.mobly_runner:main"
+results_uploader = "results_uploader.results_uploader:main"

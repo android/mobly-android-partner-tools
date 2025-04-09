@@ -11,38 +11,23 @@ accounts), allowing for easy tracking and debugging.
 ## First-time setup
 
 ### Requirements
+
 * Python 3.11 or above
 
 ### Instructions
 
 To start using the Results Uploader, you need to be able to access the shared
 Google Cloud Storage bucket:
+
 1. Confirm/request access to the shared GCP project with your Google contact.
    The Googler will give you a project name to use.
-2. Download `results_uploader-{version}-py3-none-any.whl` from the latest
-   [Results Uploader release](https://github.com/android/mobly-android-partner-tools/releases).
-3. Install the gcloud CLI from https://cloud.google.com/sdk/docs/install
-   * If installation fails with the above method, try the alternative linked
-     [here](https://cloud.google.com/sdk/docs/downloads-versioned-archives#installation_instructions).
+2. Install the gcloud CLI from https://cloud.google.com/sdk/docs/install
+    * If installation fails with the above method, try the alternative linked
+      [here](https://cloud.google.com/sdk/docs/downloads-versioned-archives#installation_instructions).
 
 ## How to upload results
-1. Create a new terminal and run the following installation commands (first-time
-   only).
 
-    ```bash
-    # on Linux
-
-    python3 -m venv venv
-    source venv/bin/activate
-    python3 -m pip install results_uploader-{version}-py3-none-any.whl
-    ```
-    ```cmd
-    :: on Windows
-
-    python -m venv venv
-    venv\Scripts\activate
-    python -m pip install results_uploader-{version}-py3-none-any.whl
-    ```
+1. Follow the installation instructions for [`mobly-android-partner-tools`](../../README.md#installation-instructions).
 
 2. At the end of a completed test run, you'll see the final lines on the console
    output as follows. Record the folder path in the line starting with
@@ -66,11 +51,12 @@ Google Cloud Storage bucket:
    wish to view your test results.
 
 ## Troubleshooting
-*  If the link is missing, or the contents of the link are empty, check the
-   debug logs of the uploader. Its location is shown at the beginning of the 
-   tool's output indicated by `Debug logs are saved to: ...`.
-*  Report any tool issues to Google and attach all tool output, including the
-   debug logs.
+
+* If the link is missing, or the contents of the link are empty, check the
+  debug logs of the uploader. Its location is shown at the beginning of the
+  tool's output indicated by `Debug logs are saved to: ...`.
+* Report any tool issues to Google and attach all tool output, including the
+  debug logs.
 
 ## Additional reference
 

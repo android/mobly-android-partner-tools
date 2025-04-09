@@ -10,9 +10,9 @@ environment setup/teardown, and executes the test.
 As a basic usage example:
 
 ```bash
-python3 mobly_runner.py -p my_test_package.zip 
+mobly_runner my_test_suite
 ```
 
-executes the Mobly test binary contained in `my_test_package.zip`.
+executes the installed Mobly test suite `my_test_suite`.
 
-For more details, please refer to the CLI options in `python mobly_runner.py -h`.
+For more details, please refer to the CLI options in `mobly_runner -h`.

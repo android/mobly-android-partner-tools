@@ -7,6 +7,9 @@ Use cases include the [BeToCQ test suite](https://github.com/android/betocq).
 
 ## Installation instructions
 
+**If you have already installed a test suite that includes these tools, such as
+BeToCQ, you may skip these steps.**
+
 1. Download `mobly-android-partner-tools-{version}-py3-none-any.whl` from the
    latest [release](https://github.com/android/mobly-android-partner-tools/releases).
 2. Open a new terminal and run the following installation commands.
@@ -39,5 +42,4 @@ The results uploader is a tool that allows partners to upload test results to
 a shared test storage, where they may then review and debug the results with 
 Google.
 
-Refer to the dedicated [README](src/results_uploader/README.md) for more
-details.
+Refer to the dedicated [README](src/results_uploader/README.md) for more details.

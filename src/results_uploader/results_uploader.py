@@ -385,7 +385,8 @@ def _upload_dir_to_gcs(
     """Uploads the given directory to a GCS bucket."""
     # Set correct MIME types for certain text-format files.
     with resources.as_file(
-            resources.files('data').joinpath('mime.types')) as path:
+            resources.files('results_uploader').joinpath(
+                'data/mime.types')) as path:
         mimetypes.init([path])
 
     bucket_obj = storage.Client().bucket(gcs_bucket)

@@ -32,7 +32,7 @@ import httplib2
 _DEFAULT_CONFIGURATION = 'default'
 _RESULTSTORE_BASE_LINK = 'https://btx.cloud.google.com'
 
-_PACKAGE_NAME = 'results_uploader'
+_PACKAGE_NAME = 'mobly-android-partner-tools'
 
 
 class Status(enum.Enum):

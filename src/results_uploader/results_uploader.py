@@ -27,6 +27,7 @@ import pathlib
 import platform
 import shutil
 import subprocess
+import sys
 import tempfile
 import warnings
 from xml.etree import ElementTree
@@ -81,7 +82,7 @@ class _TestResultInfo:
     target_id: str | None = None
 
 
-def _parse_args() -> argparse.Namespace:
+def _parse_args(argv: list[str] | None) -> argparse.Namespace:
     """Parses the command-line arguments."""
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -136,7 +137,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument(
         '-v', '--verbose', action='store_true', help='Enable debug logs.'
     )
-    return parser.parse_args()
+    return parser.parse_args(args=argv or sys.argv[1:])
 
 
 def _setup_logging(verbose: bool) -> None:
@@ -446,7 +447,7 @@ def _upload_to_resultstore(
         target_id: str | None,
         labels: list[str],
 ) -> None:
-    """Uploads test results to Resultstore."""
+    """Calls the Resultstore Upload API to generate a new invocation."""
     logging.info('Generating Resultstore link...')
     creds, project_id = google.auth.default()
     service = discovery.build(
@@ -470,8 +471,9 @@ def _upload_to_resultstore(
     client.finalize_invocation()
 
 
-def main():
-    args = _parse_args()
+def main(argv: list[str] | None = None) -> None:
+    args = _parse_args(argv)
+
     _setup_logging(args.verbose)
     if args.reset_gcp_login:
         _run_gcloud_command(['auth', 'application-default', 'revoke', '-q'])

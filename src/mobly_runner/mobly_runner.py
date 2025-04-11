@@ -30,6 +30,9 @@ Example:
       Approvals.
     mobly_runner test_suite_a --generate_report
 
+    - Run a test binary, and enable results upload to Resultstore/BTX.
+    mobly_runner test_suite_a --upload_results
+
 Please run `mobly_runner -h` for a full list of options.
 """
 
@@ -46,6 +49,7 @@ from typing import List, Optional
 import yaml
 
 from mobly_runner import report_generator
+from results_uploader import results_uploader
 
 
 _DEFAULT_MOBLY_LOGPATH = Path('/tmp/logs/mobly')
@@ -119,6 +123,15 @@ def _parse_args() -> argparse.Namespace:
         action='store_true',
         help=(
             'Generate an Android Partner Approval report from the test results.'
+        )
+    )
+    parser.add_argument(
+        '-u',
+        '--upload_results',
+        action='store_true',
+        help=(
+            'Provides the option to upload results to Resultstore/BTX upon '
+            'test completion.'
         )
     )
 
@@ -258,6 +271,13 @@ def main() -> None:
     if args.generate_report:
         _padded_print('Generating test report.')
         report_generator.generate_report(latest_logs, start_time, end_time)
+
+    # Upload results to Resultstore, if requested by user
+    if args.upload_results:
+        resp = input('\nUpload test results to Resultstore/BTX viewer? (Y/N): ')
+        if resp.lower() in ('y', 'yes'):
+            _padded_print('Uploading test results.')
+            results_uploader.main([str(latest_logs)])
 
 
 if __name__ == '__main__':

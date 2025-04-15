@@ -475,6 +475,16 @@ def main(argv: list[str] | None = None) -> None:
     args = _parse_args(argv)
 
     _setup_logging(args.verbose)
+
+    mobly_dir = pathlib.Path(args.mobly_dir).absolute().expanduser()
+    if not mobly_dir.is_dir():
+        logging.error(
+            'The specified log directory %s does not exist, aborting.',
+            mobly_dir
+        )
+        return
+
+    # Configure local GCP parameters
     if args.reset_gcp_login:
         _run_gcloud_command(['auth', 'application-default', 'revoke', '-q'])
     try:
@@ -497,7 +507,6 @@ def main(argv: list[str] | None = None) -> None:
         if not args.gcs_dir
         else args.gcs_dir
     )
-    mobly_dir = pathlib.Path(args.mobly_dir).absolute().expanduser()
 
     if args.no_convert_result:
         # Determine the final status based on the test.xml

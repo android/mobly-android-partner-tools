@@ -274,10 +274,8 @@ def main() -> None:
 
     # Upload results to Resultstore, if requested by user
     if args.upload_results:
-        resp = input('\nUpload test results to Resultstore/BTX viewer? (Y/N): ')
-        if resp.lower() in ('y', 'yes'):
-            _padded_print('Uploading test results.')
-            results_uploader.main([str(latest_logs)])
+        _padded_print('Uploading test results to Resultstore/BTX.')
+        results_uploader.main([str(latest_logs)])
 
 
 if __name__ == '__main__':

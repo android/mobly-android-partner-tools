@@ -14,6 +14,7 @@
 
 """Generates a Mobly non-pass/fail test report for upload to APA."""
 import collections
+import logging
 import os
 import platform
 import socket
@@ -111,9 +112,9 @@ def _generate_test_result_xml(
     """
     mobly_summary = mobly_logs.joinpath(records.OUTPUT_FILE_SUMMARY)
     if not mobly_summary.is_file():
-        print(
-            f'[WARNING] No Mobly summary found. Aborting {_APA_TEST_RESULT_XML}'
-            ' generation.'
+        logging.warning(
+            '[WARNING] No Mobly summary found. Aborting %s generation.',
+            _APA_TEST_RESULT_XML
         )
         return False
     results = {}
@@ -279,4 +280,4 @@ def generate_report(mobly_logs: Path, start_time: int, end_time: int) -> None:
     with zipfile.ZipFile(zip_path, 'w') as zip_file:
         for path in report_base_files.iterdir():
             zip_file.write(str(path), arcname=str(path.name))
-    print(f'Report created in {zip_path}')
+    logging.info('Report created in %s', zip_path)

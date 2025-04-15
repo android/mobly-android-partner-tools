@@ -130,8 +130,7 @@ def _parse_args() -> argparse.Namespace:
         '--upload_results',
         action='store_true',
         help=(
-            'Provides the option to upload results to Resultstore/BTX upon '
-            'test completion.'
+            'Upload results to Resultstore/BTX upon test completion.'
         )
     )
 

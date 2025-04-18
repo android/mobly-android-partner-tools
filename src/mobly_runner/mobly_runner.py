@@ -39,6 +39,7 @@ Please run `mobly_runner -h` for a full list of options.
 import argparse
 import importlib.resources
 import os
+import sys
 from pathlib import Path
 import shutil
 import subprocess
@@ -71,7 +72,8 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument(
         'mobly_bin',
         help=(
-            'Name of the installed Mobly binary to run.'
+            'Name of the installed Mobly binary to run, or path to a Mobly '
+            'Python script.'
         ),
     )
 
@@ -220,9 +222,10 @@ def _run_mobly_tests(
     env = os.environ.copy()
     base_log_path = _DEFAULT_MOBLY_LOGPATH
     if log_path:
-        base_log_path = Path(log_path, mobly_bin)
+        base_log_path = Path(log_path, Path(mobly_bin).stem)
         env['MOBLY_LOGPATH'] = str(base_log_path)
-    cmd = [mobly_bin, '-c', config, '-tb', test_bed]
+    cmd = [sys.executable] if mobly_bin.endswith('.py') else []
+    cmd += [mobly_bin, '-c', config, '-tb', test_bed]
     if tests is not None:
         cmd.append('--tests')
         cmd += tests

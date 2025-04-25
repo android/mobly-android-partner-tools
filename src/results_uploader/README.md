@@ -33,12 +33,13 @@ Google Cloud Storage bucket:
     ```
 
 2. Run the uploader command, setting the `artifacts_folder` as the path recorded
-   in the previous step.
+   in the previous step, setting the `gcs_bucket` as the GCP project name provided by your Google
+   contact.
     ```bash
-    results_uploader <artifacts_folder>
+    results_uploader <artifacts_folder> --gcs_bucket <gcs_bucket>
     ```
 
-3. If successful, at the end of the upload process you will get a link beginning
+4. If successful, at the end of the upload process you will get a link beginning
    with http://btx.cloud.google.com. Simply share this link to others who
    wish to view your test results.
 

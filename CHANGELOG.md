@@ -1,5 +1,11 @@
 # Mobly Android Partner Tools release history
 
+## 1.1.0 (2025-04-28)
+
+### New
+* [mobly_runner] Enable direct execution of test classes/suites as python files
+
+
 ## 1.0.0 (2025-04-16)
 
 ### New

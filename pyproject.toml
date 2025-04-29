@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mobly-android-partner-tools"
-version = "1.0.0"
+version = "1.1.0"
 description = "Command-line utilities used by Android partners to run packaged Mobly tests and upload test results."
 readme = "README.md"
 requires-python = ">=3.11"

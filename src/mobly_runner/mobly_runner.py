@@ -24,6 +24,7 @@ Example:
     mobly_runner path/to/my/test.py
 
     - Run a test binary. Install all test APKs before running the test.
+    - The test APKs must be pip-installed as package data under "snippets/*.apk"
     mobly_runner test_suite_a -i
 
     - Run a test binary with specific Android devices.
@@ -86,8 +87,9 @@ def _parse_args() -> argparse.Namespace:
         '--install_apks',
         action='store_true',
         help=(
-            'Install all APKs contained in package resource files to all '
-            'specified devices.'
+            'Install all APKs contained in test package data files to all '
+            'specified devices. The APKs must be under the path '
+            '"snippets/*.apk".'
         ),
     )
     parser.add_argument(

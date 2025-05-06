@@ -159,8 +159,7 @@ def _parse_adb_devices(lines: List[str]) -> List[str]:
 def _find_installed_mobly_test_pkgs() -> list[str]:
     """Finds all installed Mobly test packages.
 
-    The installed test packages must declare a dependency on
-    `mobly`.
+    The installed test packages must declare a dependency on `mobly`.
     """
     cmd = [
         'pipdeptree', '--reverse', '--packages', 'mobly', '--json', '--warn',

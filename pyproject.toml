@@ -18,6 +18,7 @@ dependencies = [
   "google-cloud-storage",
   "httplib2",
   "mobly",
+  "pipdeptree",
   "pyyaml",
 ]
 

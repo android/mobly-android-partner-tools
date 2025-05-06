@@ -20,7 +20,10 @@ Example:
     - Run a selected test binary
     mobly_runner test_suite_a
 
-    - Run a test binary. Install test APKs before running the test.
+    - Run a selected test script (deps must be installed first)
+    mobly_runner path/to/my/test.py
+
+    - Run a test binary. Install all test APKs before running the test.
     mobly_runner test_suite_a -i
 
     - Run a test binary with specific Android devices.
@@ -38,6 +41,7 @@ Please run `mobly_runner -h` for a full list of options.
 
 import argparse
 import importlib.resources
+import json
 import os
 import sys
 from pathlib import Path
@@ -152,10 +156,32 @@ def _parse_adb_devices(lines: List[str]) -> List[str]:
     return results
 
 
+def _find_installed_mobly_test_pkgs() -> list[str]:
+    """Finds all installed Mobly test packages.
+
+    The installed test packages must declare a dependency on
+    `mobly`.
+    """
+    cmd = [
+        'pipdeptree', '--reverse', '--packages', 'mobly', '--json', '--warn',
+        'silence'
+    ]
+    deps_json = subprocess.check_output(cmd, text=True)
+    pkgs = []
+    for entry in json.loads(deps_json):
+        name = entry['package']['package_name']
+        if name != 'mobly':
+            pkgs.append(name)
+    return pkgs
+
+
 def _install_apks(
         serials: Optional[List[str]] = None,
 ) -> None:
     """Installs snippet APKS to specified devices.
+
+    From all pip-installed Mobly test packages, any resource file with the path
+    "snippets/*.apk" will be installed to the device.
 
     If no serials specified, installs APKs on all attached devices.
 
@@ -170,13 +196,21 @@ def _install_apks(
             ).decode('utf-8').strip().splitlines()
         )
         serials = _parse_adb_devices(adb_devices_out)
-    for apk in importlib.resources.files(
-            'betocq').joinpath('snippets').iterdir():
-        for serial in serials:
-            print(f'Installing {apk} on device {serial}.')
-            subprocess.check_call(
-                ['adb', '-s', serial, 'install', '-r', '-g', apk]
-            )
+    for pkg in _find_installed_mobly_test_pkgs():
+        try:
+            snippets_dir = importlib.resources.files(pkg).joinpath('snippets')
+        except ModuleNotFoundError:
+            continue
+        if snippets_dir.is_dir():
+            print(f'Installing snippet APKs for test package {pkg}...')
+            for apk in snippets_dir.iterdir():
+                if apk.name.endswith('.apk'):
+                    for serial in serials:
+                        print(f'Installing {apk} on device {serial}.')
+                        subprocess.check_call(
+                            ['adb', '-s', serial, 'install', '-r', '-g', apk]
+                        )
+            print()
 
 
 def _generate_mobly_config(serials: Optional[List[str]] = None) -> str:

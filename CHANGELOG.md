@@ -1,5 +1,12 @@
 # Mobly Android Partner Tools release history
 
+## 1.1.1 (2025-05-07)
+
+### Fixes
+* [mobly_runner] Remove hardcoded BeToCQ APK resource file path when installing
+  test APKs with `-i`
+
+
 ## 1.1.0 (2025-04-28)
 
 ### New

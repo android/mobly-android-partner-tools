@@ -493,6 +493,8 @@ def main(argv: list[str] | None = None) -> None:
     # Configure local GCP parameters
     if args.reset_gcp_login:
         _run_gcloud_command(['auth', 'application-default', 'revoke', '-q'])
+        if os.getenv(google.auth.environment_vars.CREDENTIALS):
+            del os.environ[google.auth.environment_vars.CREDENTIALS]
         _gcloud_login_and_set_project()
     try:
         creds, project_id = google.auth.default()

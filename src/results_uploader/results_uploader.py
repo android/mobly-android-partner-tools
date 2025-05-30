@@ -23,6 +23,7 @@ import datetime
 from importlib import resources
 import logging
 import mimetypes
+import os
 import pathlib
 import platform
 import shutil
@@ -180,6 +181,10 @@ def _gcloud_login_and_set_project() -> None:
     project_id = ''
     while not project_id:
         project_id = input('Enter your GCP project ID: ')
+    os.environ[google.auth.environment_vars.PROJECT] = project_id
+    _run_gcloud_command(
+        ['config', 'set', 'project', project_id]
+    )
     _run_gcloud_command(
         ['auth', 'application-default', 'login', '--no-launch-browser']
     )
@@ -439,6 +444,8 @@ def _upload_dir_to_gcs(
 
 
 def _upload_to_resultstore(
+        creds: google.auth.credentials.Credentials,
+        project_id: str,
         api_key: str,
         gcs_bucket: str,
         gcs_base_dir: str,
@@ -449,7 +456,6 @@ def _upload_to_resultstore(
 ) -> None:
     """Calls the Resultstore Upload API to generate a new invocation."""
     logging.info('Generating Resultstore link...')
-    creds, project_id = google.auth.default()
     service = discovery.build(
         _RESULTSTORE_SERVICE_NAME,
         _API_VERSION,
@@ -487,11 +493,14 @@ def main(argv: list[str] | None = None) -> None:
     # Configure local GCP parameters
     if args.reset_gcp_login:
         _run_gcloud_command(['auth', 'application-default', 'revoke', '-q'])
+        if os.getenv(google.auth.environment_vars.CREDENTIALS):
+            del os.environ[google.auth.environment_vars.CREDENTIALS]
+        _gcloud_login_and_set_project()
     try:
-        _, project_id = google.auth.default()
+        creds, project_id = google.auth.default()
     except google.auth.exceptions.DefaultCredentialsError:
         _gcloud_login_and_set_project()
-        _, project_id = google.auth.default()
+        creds, project_id = google.auth.default()
     logging.info('Current GCP project ID: %s', project_id)
     api_key = _retrieve_api_key(project_id)
     if api_key is None:
@@ -534,6 +543,8 @@ def main(argv: list[str] | None = None) -> None:
             args.gcs_upload_timeout
         )
     _upload_to_resultstore(
+        creds,
+        project_id,
         api_key,
         gcs_bucket,
         gcs_base_dir.as_posix(),

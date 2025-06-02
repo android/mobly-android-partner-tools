@@ -1,5 +1,12 @@
 # Mobly Android Partner Tools release history
 
+## 1.1.2 (2025-06-01)
+
+### Fixes
+* [results_uploader] Ensure new user or `--reset_gcp_login` prompt sets the 
+  correct local project ID
+
+
 ## 1.1.1 (2025-05-07)
 
 ### Fixes

@@ -312,7 +312,11 @@ def main() -> None:
     # Upload results to Resultstore, if requested by user
     if args.upload_results:
         _padded_print('Uploading test results to Resultstore/BTX.')
-        results_uploader.main([str(latest_logs)])
+        upload_args = [str(latest_logs)]
+        label = input('Attach a label to the uploaded result (optional): ')
+        if not label.isspace():
+            upload_args += ['--label', label]
+        results_uploader.main(upload_args)
 
 
 if __name__ == '__main__':

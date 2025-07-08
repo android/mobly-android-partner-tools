@@ -64,7 +64,6 @@ _TEST_LOG_INFO = 'test_log.INFO'
 _SUITE_NAME = 'suite_name'
 _RUN_IDENTIFIER = 'run_identifier'
 
-_GCS_BASE_LINK = 'https://console.cloud.google.com/storage/browser'
 _GCS_DEFAULT_TIMEOUT_SECS = 300
 
 _ResultstoreTreeTags = mobly_result_converter.ResultstoreTreeTags
@@ -119,6 +118,12 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
         action='append',
         help='Label to attach to the uploaded result. Can be repeated for '
              'multiple labels.'
+    )
+    parser.add_argument(
+        '--label_on_pass_only',
+        action='store_true',
+        help='Only apply labels if the overall result is passing. No-op '
+             'otherwise.'
     )
     parser.add_argument(
         '--no_convert_result',
@@ -542,6 +547,10 @@ def main(argv: list[str] | None = None) -> None:
             gcs_base_dir.joinpath(_UNDECLARED_OUTPUTS).as_posix(),
             args.gcs_upload_timeout
         )
+    labels = args.label
+    if args.label_on_pass_only:
+        if test_result_info.status in (_Status.FAILED, _Status.UNKNOWN):
+            labels = []
     _upload_to_resultstore(
         creds,
         project_id,
@@ -551,7 +560,7 @@ def main(argv: list[str] | None = None) -> None:
         gcs_files,
         test_result_info.status,
         args.test_title or test_result_info.target_id,
-        args.label
+        labels
     )
 
 

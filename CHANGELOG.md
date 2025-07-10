@@ -1,5 +1,14 @@
 # Mobly Android Partner Tools release history
 
+## 1.2.0 (2025-07-09)
+
+### New
+* [mobly_runner] When uploading test results with the `-u` option, 
+  use `--label_on_pass` to specify a label to automatically append to the upload
+  only if the test result is passing.
+  * Labels can be used to classify test results for debugging/review.
+
+
 ## 1.1.2 (2025-06-01)
 
 ### Fixes

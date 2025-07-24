@@ -547,7 +547,7 @@ def _process_record(
         )
 
     mobly_test_class = entry[records.TestResultEnums.RECORD_CLASS]
-    mobly_test_case = entry[records.TestResultEnums.RECORD_SIGNATURE].split('-')[0]
+    mobly_test_case = entry[records.TestResultEnums.RECORD_NAME]
     _add_or_update_property_element(
         properties_element,
         MoblyResultstoreProperties.TEST_CLASS.value,

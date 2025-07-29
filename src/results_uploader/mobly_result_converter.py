@@ -57,6 +57,14 @@ _ILLEGAL_XML_CHARS = re.compile(
 
 _ILLEGAL_YAML_CHARS = re.compile(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f]')
 
+_INSPECTOR_BASIC_URL = (
+    'https://btx.cloud.google.com/mobly-inspector;'
+    + 'invocationId={{invocationId}};'
+    + 'targetId={{targetId}};'
+    + 'configurationId={{configurationId}};'
+    + 'actionId={{actionId}};'
+    + 'testcase='
+)
 
 class MoblyResultstoreProperties(enum.Enum):
     """Resultstore properties defined specifically for all Mobly tests.
@@ -76,6 +84,7 @@ class MoblyResultstoreProperties(enum.Enum):
     ERROR_MESSAGE = 'mobly_error_message'
     ERROR_TYPE = 'mobly_error_type'
     STACK_TRACE = 'mobly_stack_trace'
+    INSPECTOR_LINK = 'inspector_link'
 
 
 _MOBLY_PROPERTY_VALUES = frozenset(e.value for e in MoblyResultstoreProperties)
@@ -536,15 +545,23 @@ def _process_record(
             MoblyResultstoreProperties.END_TIME.value,
             str(end_time),
         )
+
+    mobly_test_class = entry[records.TestResultEnums.RECORD_CLASS]
+    mobly_test_case = entry[records.TestResultEnums.RECORD_NAME]
     _add_or_update_property_element(
         properties_element,
         MoblyResultstoreProperties.TEST_CLASS.value,
-        entry[records.TestResultEnums.RECORD_CLASS],
+        mobly_test_class,
     )
     _add_or_update_property_element(
         properties_element,
         MoblyResultstoreProperties.TEST_TYPE.value,
         'mobly_test',
+    )
+    _add_or_update_property_element(
+        properties_element,
+        MoblyResultstoreProperties.INSPECTOR_LINK.value,
+        _INSPECTOR_BASIC_URL + f'{mobly_test_class}%23{mobly_test_case}'
     )
 
     if entry.get(records.TestResultEnums.RECORD_SIGNATURE, None) is not None:

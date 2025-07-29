@@ -1,5 +1,13 @@
 # Mobly Android Partner Tools release history
 
+## 1.3.0 (2025-07-29)
+
+### New
+* [results_uploader] Add `inspector_link` property for each test case.
+  * Users can now view the BTX Inspector page for uploaded results, where
+    applicable.
+
+
 ## 1.2.0 (2025-07-09)
 
 ### New

@@ -686,7 +686,7 @@ def convert(
     Returns:
       A Resultstore XML tree for the Mobly test.
     """
-    logging.info('Generating Resultstore tree...')
+    logging.debug('Generating Resultstore tree...')
 
     with mobly_results_path.open('r', encoding='utf-8') as f:
         summary_entries = list(

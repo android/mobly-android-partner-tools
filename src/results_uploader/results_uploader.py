@@ -86,7 +86,7 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
     """Parses the command-line arguments."""
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        'mobly_dir',
+        'logs_dir',
         help='Directory on host where Mobly results are stored.',
     )
     parser.add_argument(
@@ -169,6 +169,12 @@ def _setup_logging(verbose: bool) -> None:
     print('-' * 50)
 
 
+def _get_summary_yaml_if_exists(mobly_dir: pathlib.Path) -> pathlib.Path | None:
+    """Returns path to test_summary.yaml file if it exists, None otherwise."""
+    summary_yaml = mobly_dir.joinpath(_TEST_SUMMARY_YAML)
+    return summary_yaml if summary_yaml.is_file() else None
+
+
 def _run_gcloud_command(args: list[str]) -> None:
     """Runs a command with the gcloud CLI."""
     try:
@@ -226,8 +232,8 @@ def _convert_results(
     test_result_info = _TestResultInfo()
     logging.info('Converting raw Mobly logs into Resultstore artifacts...')
     # Generate the test.xml
-    mobly_yaml_path = mobly_dir.joinpath(_TEST_SUMMARY_YAML)
-    if mobly_yaml_path.is_file():
+    mobly_yaml_path = _get_summary_yaml_if_exists(mobly_dir)
+    if mobly_yaml_path:
         test_xml = mobly_result_converter.convert(mobly_yaml_path, mobly_dir)
         ElementTree.indent(test_xml)
         test_xml.write(
@@ -274,6 +280,10 @@ def _aggregate_subtest_results(subtest_results: list[str]):
     This is used to provide a test class result based on the test cases, or
     a test suite result based on the test classes.
     """
+    # Unknown if all subtests unknown
+    if all([result == _Status.UNKNOWN for result in subtest_results]):
+        return _Status.UNKNOWN
+
     # Skip if all subtests skipped
     if all([result == _Status.SKIPPED for result in subtest_results]):
         return _Status.SKIPPED
@@ -382,7 +392,7 @@ def _get_test_result_info_from_test_xml(
             test_class_element.get(_ResultstoreTreeAttributes.NAME.value)
             for test_class_element in test_class_elements
         ]
-        target_id = '+'.join(test_class_names)
+        target_id = '-'.join(test_class_names)
     if run_identifier_value:
         target_id = f'{target_id} {run_identifier_value}'
 
@@ -448,37 +458,56 @@ def _upload_dir_to_gcs(
     return [f'{gcs_dir}/{path}' for path in success_paths]
 
 
-def _upload_to_resultstore(
+def _start_resultstore_client(
         creds: google.auth.credentials.Credentials,
         project_id: str,
         api_key: str,
-        gcs_bucket: str,
-        gcs_base_dir: str,
-        file_paths: list[str],
-        status: _Status,
-        target_id: str | None,
-        labels: list[str],
-) -> None:
-    """Calls the Resultstore Upload API to generate a new invocation."""
-    logging.info('Generating Resultstore link...')
+) -> resultstore_client.ResultstoreClient:
+    """Starts the Resultstore Upload client."""
+    logging.info('Initializing Resultstore client...')
     service = discovery.build(
         _RESULTSTORE_SERVICE_NAME,
         _API_VERSION,
         discoveryServiceUrl=_DISCOVERY_SERVICE_URL,
         developerKey=api_key,
     )
-    client = resultstore_client.ResultstoreClient(service, creds, project_id)
-    client.create_invocation(labels)
+    return resultstore_client.ResultstoreClient(service, creds, project_id)
+
+
+def _create_resultstore_invocation(
+        client: resultstore_client.ResultstoreClient,
+) -> None:
+    """Calls the Resultstore Upload API to generate a new invocation."""
+    logging.info('Creating Resultstore invocation...')
+    client.create_invocation()
     client.create_default_configuration()
+
+
+def _add_resultstore_target(
+        client: resultstore_client.ResultstoreClient,
+        gcs_bucket: str,
+        gcs_base_dir: str,
+        file_paths: list[str],
+        status: _Status,
+        target_id: str | None,
+) -> None:
+    """Calls the Resultstore Upload API to create and populate a new target."""
     client.create_target(target_id)
     client.create_configured_target()
     client.create_action(gcs_bucket, gcs_base_dir, file_paths)
-    client.set_status(status)
-    client.merge_configured_target()
+    client.merge_configured_target(status)
     client.finalize_configured_target()
-    client.merge_target()
+    client.merge_target(status)
     client.finalize_target()
-    client.merge_invocation()
+
+
+def _finalize_resultstore_invocation(
+        client: resultstore_client.ResultstoreClient,
+        status: _Status,
+        labels: list[str],
+):
+    """Updates the final status of the invocation and completes the upload."""
+    client.merge_invocation(status, labels)
     client.finalize_invocation()
 
 
@@ -487,13 +516,24 @@ def main(argv: list[str] | None = None) -> None:
 
     _setup_logging(args.verbose)
 
-    mobly_dir = pathlib.Path(args.mobly_dir).absolute().expanduser()
-    if not mobly_dir.is_dir():
+    logs_dir = pathlib.Path(args.logs_dir).absolute().expanduser()
+    if not logs_dir.is_dir():
         logging.error(
             'The specified log directory %s does not exist, aborting.',
-            mobly_dir
+            logs_dir
         )
         return
+
+    if args.no_convert_result:
+        # Upload the requested directory as is, assuming it is already in the
+        # Resultstore format.
+        mobly_dirs = [logs_dir]
+    else:
+        # Walk through all subdirectories that contain raw Mobly logs.
+        mobly_dirs = []
+        for path in logs_dir.rglob('*'):
+            if path.is_dir() and _get_summary_yaml_if_exists(path):
+                mobly_dirs.append(path)
 
     # Configure local GCP parameters
     if args.reset_gcp_login:
@@ -515,6 +555,8 @@ def main(argv: list[str] | None = None) -> None:
             _API_KEY_DISPLAY_NAME, project_id
         )
         return
+    rs_client = _start_resultstore_client(creds, project_id, api_key)
+
     gcs_bucket = project_id if args.gcs_bucket is None else args.gcs_bucket
     gcs_base_dir = pathlib.PurePath(
         datetime.datetime.now().strftime('%Y%m%d-%H%M%S')
@@ -522,46 +564,53 @@ def main(argv: list[str] | None = None) -> None:
         else args.gcs_dir
     )
 
-    if args.no_convert_result:
-        # Determine the final status based on the test.xml
-        test_xml = ElementTree.parse(mobly_dir.joinpath(_TEST_XML))
-        test_result_info = _get_test_result_info_from_test_xml(test_xml)
-        # Upload the contents of mobly_dir directly
-        gcs_files = _upload_dir_to_gcs(
-            mobly_dir, gcs_bucket, gcs_base_dir.as_posix(),
-            args.gcs_upload_timeout
-        )
-    else:
-        # Generate and upload test.xml and test.log
-        with tempfile.TemporaryDirectory() as tmp:
-            converted_dir = pathlib.Path(tmp).joinpath(gcs_base_dir)
-            converted_dir.mkdir(parents=True)
-            test_result_info = _convert_results(mobly_dir, converted_dir)
-            gcs_files = _upload_dir_to_gcs(
-                converted_dir, gcs_bucket, gcs_base_dir.as_posix(),
-                args.gcs_upload_timeout
+    _create_resultstore_invocation(rs_client)
+    target_statuses = []
+    try:
+        for idx, mobly_dir in enumerate(mobly_dirs):
+            gcs_dir = gcs_base_dir.joinpath(f'dir{idx}')
+            if args.no_convert_result:
+                # Determine the final status based on the test.xml
+                test_xml = ElementTree.parse(mobly_dir.joinpath(_TEST_XML))
+                test_result_info = _get_test_result_info_from_test_xml(test_xml)
+                # Upload the contents of mobly_dir directly
+                gcs_files = _upload_dir_to_gcs(
+                    mobly_dir, gcs_bucket, gcs_dir.as_posix(),
+                    args.gcs_upload_timeout
+                )
+            else:
+                # Generate and upload test.xml and test.log
+                with tempfile.TemporaryDirectory() as tmp:
+                    converted_dir = pathlib.Path(tmp).joinpath(gcs_dir)
+                    converted_dir.mkdir(parents=True)
+                    test_result_info = _convert_results(mobly_dir, converted_dir)
+                    gcs_files = _upload_dir_to_gcs(
+                        converted_dir, gcs_bucket, gcs_dir.as_posix(),
+                        args.gcs_upload_timeout
+                    )
+                # Upload raw Mobly logs to undeclared_outputs/ subdirectory
+                gcs_files += _upload_dir_to_gcs(
+                    mobly_dir, gcs_bucket,
+                    gcs_dir.joinpath(_UNDECLARED_OUTPUTS).as_posix(),
+                    args.gcs_upload_timeout
+                )
+            _add_resultstore_target(
+                rs_client,
+                gcs_bucket,
+                gcs_dir.as_posix(),
+                gcs_files,
+                test_result_info.status,
+                args.test_title or test_result_info.target_id,
             )
-        # Upload raw Mobly logs to undeclared_outputs/ subdirectory
-        gcs_files += _upload_dir_to_gcs(
-            mobly_dir, gcs_bucket,
-            gcs_base_dir.joinpath(_UNDECLARED_OUTPUTS).as_posix(),
-            args.gcs_upload_timeout
-        )
-    labels = args.label
-    if args.label_on_pass_only:
-        if test_result_info.status in (_Status.FAILED, _Status.UNKNOWN):
-            labels = []
-    _upload_to_resultstore(
-        creds,
-        project_id,
-        api_key,
-        gcs_bucket,
-        gcs_base_dir.as_posix(),
-        gcs_files,
-        test_result_info.status,
-        args.test_title or test_result_info.target_id,
-        labels
-    )
+            target_statuses.append(test_result_info.status)
+    finally:
+        logging.info('Generating final Resultstore link...')
+        invocation_status = _aggregate_subtest_results(target_statuses)
+        labels = args.label
+        if args.label_on_pass_only:
+            if invocation_status in (_Status.FAILED, _Status.UNKNOWN):
+                labels = []
+        _finalize_resultstore_invocation(rs_client, invocation_status, labels)
 
 
 if __name__ == '__main__':

@@ -16,6 +16,7 @@
 
 """Resultstore client for Mobly tests."""
 
+import collections
 import datetime
 import enum
 import importlib.metadata
@@ -64,7 +65,7 @@ class ResultstoreClient:
             service: discovery.Resource,
             creds: credentials.Credentials,
             project_id: str,
-    ):
+    ) -> None:
         """Creates a ResultstoreClient.
 
         Args:
@@ -78,30 +79,31 @@ class ResultstoreClient:
         )
         self._project_id = project_id
 
-        self._request_id = ''
         self._invocation_id = ''
         self._authorization_token = ''
         self._target_id = ''
         self._encoded_target_id = ''
 
+        self._used_target_ids = collections.Counter()
+
         self._status = Status.UNKNOWN
 
     @property
-    def _invocation_name(self):
+    def _invocation_name(self) -> str:
         """The resource name for the invocation."""
         if not self._invocation_id:
             return ''
         return f'invocations/{self._invocation_id}'
 
     @property
-    def _target_name(self):
+    def _target_name(self) -> str:
         """The resource name for the target."""
         if not (self._invocation_name or self._encoded_target_id):
             return ''
         return f'{self._invocation_name}/targets/{self._encoded_target_id}'
 
     @property
-    def _configured_target_name(self):
+    def _configured_target_name(self) -> str:
         """The resource name for the configured target."""
         if not self._target_name:
             return
@@ -111,12 +113,8 @@ class ResultstoreClient:
         """Sets the overall test run status."""
         self._status = status
 
-    def create_invocation(self, labels: list[str]) -> str:
+    def create_invocation(self) -> str:
         """Creates an invocation.
-
-        Args:
-            labels: A list of labels to attach to the invocation, as
-              `invocation.invocationAttributes.labels`.
 
         Returns:
           The invocation ID.
@@ -134,7 +132,6 @@ class ResultstoreClient:
             },
             'invocationAttributes': {
                 'projectId': self._project_id,
-                'labels': labels,
             },
             'properties': [
                 {
@@ -143,12 +140,12 @@ class ResultstoreClient:
                 }
             ]
         }
-        self._request_id = str(uuid.uuid4())
+        request_id = str(uuid.uuid4())
         self._invocation_id = str(uuid.uuid4())
         self._authorization_token = str(uuid.uuid4())
         request = self._service.invocations().create(
             body=invocation,
-            requestId=self._request_id,
+            requestId=request_id,
             invocationId=self._invocation_id,
             authorizationToken=self._authorization_token,
         )
@@ -194,7 +191,12 @@ class ResultstoreClient:
                 self._target_id,
             )
             return
-        self._target_id = target_id or str(uuid.uuid4())
+        target_id = target_id or str(uuid.uuid4())
+        if self._used_target_ids[target_id] > 0:
+            self._target_id = f'{target_id}_{self._used_target_ids[target_id]}'
+        else:
+            self._target_id = target_id
+        self._used_target_ids[target_id] += 1
         self._encoded_target_id = urllib.parse.quote(self._target_id, safe='')
         target = {
             'id': {
@@ -292,13 +294,17 @@ class ResultstoreClient:
         )
         return action_id
 
-    def merge_configured_target(self):
-        """Merges a configured target."""
+    def merge_configured_target(self, status: Status) -> None:
+        """Merges a configured target.
+
+        Args:
+            status: The target status.
+        """
         logging.debug('merging configured target %s...',
                       self._configured_target_name)
         merge_request = {
             'configuredTarget': {
-                'statusAttributes': {'status': self._status.value},
+                'statusAttributes': {'status': status.value},
             },
             'authorizationToken': self._authorization_token,
             'updateMask': 'statusAttributes',
@@ -315,7 +321,7 @@ class ResultstoreClient:
         res = request.execute(http=self._http)
         logging.debug('invocations.targets.configuredTargets.merge: %s', res)
 
-    def finalize_configured_target(self):
+    def finalize_configured_target(self) -> None:
         """Finalizes a configured target."""
         logging.debug('finalizing configured target %s...',
                       self._configured_target_name)
@@ -334,12 +340,16 @@ class ResultstoreClient:
         res = request.execute(http=self._http)
         logging.debug('invocations.targets.configuredTargets.finalize: %s', res)
 
-    def merge_target(self):
-        """Merges a target."""
+    def merge_target(self, status: Status) -> None:
+        """Merges a target.
+
+        Args:
+            status: The target status.
+        """
         logging.debug('merging target %s...', self._target_name)
         merge_request = {
             'target': {
-                'statusAttributes': {'status': self._status.value},
+                'statusAttributes': {'status': status.value},
             },
             'authorizationToken': self._authorization_token,
             'updateMask': 'statusAttributes',
@@ -355,7 +365,7 @@ class ResultstoreClient:
         res = request.execute(http=self._http)
         logging.debug('invocations.targets.merge: %s', res)
 
-    def finalize_target(self):
+    def finalize_target(self) -> None:
         """Finalizes a target."""
         logging.debug('finalizing target %s...', self._target_name)
         finalize_request = {
@@ -371,13 +381,24 @@ class ResultstoreClient:
         )
         res = request.execute(http=self._http)
         logging.debug('invocations.targets.finalize: %s', res)
+        self._target_id = ''
+        self._encoded_target_id = ''
 
-    def merge_invocation(self):
-        """Merges an invocation."""
+    def merge_invocation(self, status: Status, labels: list[str]) -> None:
+        """Merges an invocation.
+
+        Args:
+            status: The overall invocation status.
+            labels: A list of labels to attach to the invocation, as
+              `invocation.invocationAttributes.labels`.
+        """
         logging.debug('merging invocation %s...', self._invocation_name)
         merge_request = {
-            'invocation': {'statusAttributes': {'status': self._status.value}},
-            'updateMask': 'statusAttributes',
+            'invocation': {
+                'statusAttributes': {'status': status.value},
+                'invocationAttributes': {'labels': labels},
+            },
+            'updateMask': 'statusAttributes,invocationAttributes.labels',
             'authorizationToken': self._authorization_token,
         }
         request = self._service.invocations().merge(body=merge_request,
@@ -385,7 +406,7 @@ class ResultstoreClient:
         res = request.execute(http=self._http)
         logging.debug('invocations.merge: %s', res)
 
-    def finalize_invocation(self):
+    def finalize_invocation(self) -> None:
         """Finalizes an invocation."""
         logging.debug('finalizing invocation %s...', self._invocation_name)
         finalize_request = {
@@ -397,18 +418,24 @@ class ResultstoreClient:
         res = request.execute(http=self._http)
         logging.debug('invocations.finalize: %s', res)
         print('-' * 50)
-        # Make the URL show test cases regardless of status by default.
-        show_statuses = (
-            'showStatuses='
-            f'{",".join(str(status_code) for status_code in StatusCode)}'
-        )
-        print(
-            f'See results in {_RESULTSTORE_BASE_LINK}/'
-            f'{self._target_name};config={_DEFAULT_CONFIGURATION}/tests;'
-            f'{show_statuses}'
-        )
-        self._request_id = ''
+
+        if self._used_target_ids.total() != 1:
+            print(
+                f'See results in {_RESULTSTORE_BASE_LINK}/'
+                f'{self._invocation_name}/targets;'
+            )
+        else:
+            # Make the URL show test cases regardless of status by default.
+            show_statuses = (
+                'showStatuses='
+                f'{",".join(str(status_code) for status_code in StatusCode)}'
+            )
+            print(
+                f'See results in {_RESULTSTORE_BASE_LINK}/'
+                f'{self._invocation_name}/targets/'
+                f'{next(self._used_target_ids.elements())};'
+                f'config={_DEFAULT_CONFIGURATION}/tests;{show_statuses}'
+            )
+
         self._invocation_id = ''
         self._authorization_token = ''
-        self._target_id = ''
-        self._encoded_target_id = ''

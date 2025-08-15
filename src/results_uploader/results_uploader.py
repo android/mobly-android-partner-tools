@@ -62,6 +62,8 @@ _UNDECLARED_OUTPUTS = 'undeclared_outputs'
 _TEST_SUMMARY_YAML = 'test_summary.yaml'
 _TEST_LOG_INFO = 'test_log.INFO'
 
+_CTS_CONSOLE_LOG_DIR = 'olc_server_session_logs'
+
 _SUITE_NAME = 'suite_name'
 _RUN_IDENTIFIER = 'run_identifier'
 
@@ -498,7 +500,7 @@ def _create_resultstore_invocation(
 def _add_resultstore_target(
         client: resultstore_client.ResultstoreClient,
         gcs_bucket: str,
-        gcs_base_dir: str,
+        gcs_dir: str,
         file_paths: list[str],
         status: _Status,
         target_id: str | None,
@@ -506,7 +508,7 @@ def _add_resultstore_target(
     """Calls the Resultstore Upload API to create and populate a new target."""
     client.create_target(target_id)
     client.create_configured_target()
-    client.create_action(gcs_bucket, gcs_base_dir, file_paths)
+    client.create_action(gcs_bucket, gcs_dir, file_paths)
     client.merge_configured_target(status)
     client.finalize_configured_target()
     client.merge_target(status)
@@ -536,16 +538,21 @@ def main(argv: list[str] | None = None) -> None:
         )
         return
 
+    mobly_dirs = []
+    cts_console_log_dir = None
     if args.no_convert_result:
         # Upload the requested directory as is, assuming it is already in the
         # Resultstore format.
         mobly_dirs = [logs_dir]
     else:
         # Walk through all subdirectories that contain raw Mobly logs.
-        mobly_dirs = []
         for path in itertools.chain(logs_dir.rglob('*'), [logs_dir]):
-            if path.is_dir() and _get_summary_yaml_if_exists(path):
-                mobly_dirs.append(path)
+            if path.is_dir():
+                if _get_summary_yaml_if_exists(path):
+                    mobly_dirs.append(path)
+                if (args.cts and path.name == _CTS_CONSOLE_LOG_DIR
+                        and any(path.iterdir())):
+                    cts_console_log_dir = path
 
     # Configure local GCP parameters
     if args.reset_gcp_login:
@@ -577,6 +584,16 @@ def main(argv: list[str] | None = None) -> None:
     )
 
     _create_resultstore_invocation(rs_client)
+
+    # Upload CTS console log as invocation log
+    if cts_console_log_dir:
+        gcs_files = _upload_dir_to_gcs(
+            cts_console_log_dir, gcs_bucket, gcs_base_dir.as_posix(),
+            args.gcs_upload_timeout
+        )
+        if gcs_files:
+            rs_client.add_invocation_log(gcs_bucket, gcs_files[0])
+
     target_statuses = []
     try:
         for idx, mobly_dir in enumerate(mobly_dirs):

@@ -82,7 +82,6 @@ class ResultstoreClient:
         self._invocation_id = ''
         self._authorization_token = ''
         self._target_id = ''
-        self._encoded_target_id = ''
 
         self._used_target_ids = collections.Counter()
 
@@ -94,6 +93,11 @@ class ResultstoreClient:
         if not self._invocation_id:
             return ''
         return f'invocations/{self._invocation_id}'
+
+    @property
+    def _encoded_target_id(self) -> str:
+        """The URL-encoded version of the target ID."""
+        return urllib.parse.quote(self._target_id, safe='')
 
     @property
     def _target_name(self) -> str:
@@ -197,7 +201,6 @@ class ResultstoreClient:
         else:
             self._target_id = target_id
         self._used_target_ids[target_id] += 1
-        self._encoded_target_id = urllib.parse.quote(self._target_id, safe='')
         target = {
             'id': {
                 'invocationId': self._invocation_id,
@@ -245,13 +248,13 @@ class ResultstoreClient:
         logging.debug('invocations.targets.configuredTargets.create: %s', res)
 
     def create_action(
-            self, gcs_bucket: str, gcs_base_dir: str, artifacts: list[str]
+            self, gcs_bucket: str, gcs_dir: str, artifacts: list[str]
     ) -> str:
         """Creates an action.
 
         Args:
           gcs_bucket: The bucket in GCS where artifacts are stored.
-          gcs_base_dir: Base directory of the artifacts in the GCS bucket.
+          gcs_dir: Base directory of the artifacts in the GCS bucket.
           artifacts: List of paths (relative to gcs_bucket) to the test
             artifacts.
 
@@ -263,7 +266,7 @@ class ResultstoreClient:
 
         files = []
         for path in artifacts:
-            uid = str(pathlib.PurePosixPath(path).relative_to(gcs_base_dir))
+            uid = str(pathlib.PurePosixPath(path).relative_to(gcs_dir))
             uri = f'gs://{gcs_bucket}/{path}'
             files.append({'uid': uid, 'uri': uri})
         action = {
@@ -382,7 +385,30 @@ class ResultstoreClient:
         res = request.execute(http=self._http)
         logging.debug('invocations.targets.finalize: %s', res)
         self._target_id = ''
-        self._encoded_target_id = ''
+
+    def add_invocation_log(self, gcs_bucket: str, artifact: str) -> None:
+        """Updates invocation with invocation log.
+
+        Args:
+            gcs_bucket: The bucket in GCS where the log file is stored.
+            artifact: Path (relative to gcs_bucket) to the log file.
+        """
+        logging.debug('adding invocation log to %s...', self._invocation_name)
+
+        uri = f'gs://{gcs_bucket}/{artifact}'
+        files = [{'uid': 'build.log', 'uri': uri}]
+
+        merge_request = {
+            'invocation': {
+                'files': files,
+            },
+            'updateMask': 'files',
+            'authorizationToken': self._authorization_token,
+        }
+        request = self._service.invocations().merge(body=merge_request,
+                                                    name=self._invocation_name)
+        res = request.execute(http=self._http)
+        logging.debug('invocations.merge: %s', res)
 
     def merge_invocation(self, status: Status, labels: list[str]) -> None:
         """Merges an invocation.
@@ -430,10 +456,11 @@ class ResultstoreClient:
                 'showStatuses='
                 f'{",".join(str(status_code) for status_code in StatusCode)}'
             )
+            target_id = urllib.parse.quote(
+                next(self._used_target_ids.elements()), safe='')
             print(
                 f'See results in {_RESULTSTORE_BASE_LINK}/'
-                f'{self._invocation_name}/targets/'
-                f'{next(self._used_target_ids.elements())};'
+                f'{self._invocation_name}/targets/{target_id};'
                 f'config={_DEFAULT_CONFIGURATION}/tests;{show_statuses}'
             )
 

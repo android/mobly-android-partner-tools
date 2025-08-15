@@ -21,6 +21,7 @@ import collections
 import dataclasses
 import datetime
 from importlib import resources
+import itertools
 import logging
 import mimetypes
 import os
@@ -60,6 +61,8 @@ _UNDECLARED_OUTPUTS = 'undeclared_outputs'
 
 _TEST_SUMMARY_YAML = 'test_summary.yaml'
 _TEST_LOG_INFO = 'test_log.INFO'
+
+_CTS_CONSOLE_LOG_DIR = 'olc_server_session_logs'
 
 _SUITE_NAME = 'suite_name'
 _RUN_IDENTIFIER = 'run_identifier'
@@ -124,6 +127,12 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
         action='store_true',
         help='Only apply labels if the overall result is passing. No-op '
              'otherwise.'
+    )
+    parser.add_argument(
+        '--cts',
+        action='store_true',
+        help='Upload a CTS log folder containing Mobly results. Adds '
+             'CTS-specific information to the upload.'
     )
     parser.add_argument(
         '--no_convert_result',
@@ -227,14 +236,19 @@ def _retrieve_api_key(project_id: str) -> str | None:
 
 
 def _convert_results(
-        mobly_dir: pathlib.Path, dest_dir: pathlib.Path) -> _TestResultInfo:
+        mobly_dir: pathlib.Path,
+        resultstore_root_dir: pathlib.Path,
+        dest_dir: pathlib.Path
+) -> _TestResultInfo:
     """Converts Mobly test results into Resultstore test.xml and test.log."""
     test_result_info = _TestResultInfo()
     logging.info('Converting raw Mobly logs into Resultstore artifacts...')
     # Generate the test.xml
     mobly_yaml_path = _get_summary_yaml_if_exists(mobly_dir)
     if mobly_yaml_path:
-        test_xml = mobly_result_converter.convert(mobly_yaml_path, mobly_dir)
+        test_xml = mobly_result_converter.convert(
+            mobly_yaml_path, mobly_dir, resultstore_root_dir
+        )
         ElementTree.indent(test_xml)
         test_xml.write(
             str(dest_dir.joinpath(_TEST_XML)),
@@ -486,7 +500,7 @@ def _create_resultstore_invocation(
 def _add_resultstore_target(
         client: resultstore_client.ResultstoreClient,
         gcs_bucket: str,
-        gcs_base_dir: str,
+        gcs_dir: str,
         file_paths: list[str],
         status: _Status,
         target_id: str | None,
@@ -494,7 +508,7 @@ def _add_resultstore_target(
     """Calls the Resultstore Upload API to create and populate a new target."""
     client.create_target(target_id)
     client.create_configured_target()
-    client.create_action(gcs_bucket, gcs_base_dir, file_paths)
+    client.create_action(gcs_bucket, gcs_dir, file_paths)
     client.merge_configured_target(status)
     client.finalize_configured_target()
     client.merge_target(status)
@@ -524,16 +538,21 @@ def main(argv: list[str] | None = None) -> None:
         )
         return
 
+    mobly_dirs = []
+    cts_console_log_dir = None
     if args.no_convert_result:
         # Upload the requested directory as is, assuming it is already in the
         # Resultstore format.
         mobly_dirs = [logs_dir]
     else:
         # Walk through all subdirectories that contain raw Mobly logs.
-        mobly_dirs = []
-        for path in logs_dir.rglob('*'):
-            if path.is_dir() and _get_summary_yaml_if_exists(path):
-                mobly_dirs.append(path)
+        for path in itertools.chain(logs_dir.rglob('*'), [logs_dir]):
+            if path.is_dir():
+                if _get_summary_yaml_if_exists(path):
+                    mobly_dirs.append(path)
+                if (args.cts and path.name == _CTS_CONSOLE_LOG_DIR
+                        and any(path.iterdir())):
+                    cts_console_log_dir = path
 
     # Configure local GCP parameters
     if args.reset_gcp_login:
@@ -565,6 +584,16 @@ def main(argv: list[str] | None = None) -> None:
     )
 
     _create_resultstore_invocation(rs_client)
+
+    # Upload CTS console log as invocation log
+    if cts_console_log_dir:
+        gcs_files = _upload_dir_to_gcs(
+            cts_console_log_dir, gcs_bucket, gcs_base_dir.as_posix(),
+            args.gcs_upload_timeout
+        )
+        if gcs_files:
+            rs_client.add_invocation_log(gcs_bucket, gcs_files[0])
+
     target_statuses = []
     try:
         for idx, mobly_dir in enumerate(mobly_dirs):
@@ -579,28 +608,38 @@ def main(argv: list[str] | None = None) -> None:
                     args.gcs_upload_timeout
                 )
             else:
+                dir_to_upload = mobly_dir.parent if args.cts else mobly_dir
                 # Generate and upload test.xml and test.log
                 with tempfile.TemporaryDirectory() as tmp:
                     converted_dir = pathlib.Path(tmp).joinpath(gcs_dir)
                     converted_dir.mkdir(parents=True)
-                    test_result_info = _convert_results(mobly_dir, converted_dir)
+                    test_result_info = _convert_results(
+                        mobly_dir, dir_to_upload, converted_dir
+                    )
                     gcs_files = _upload_dir_to_gcs(
                         converted_dir, gcs_bucket, gcs_dir.as_posix(),
                         args.gcs_upload_timeout
                     )
-                # Upload raw Mobly logs to undeclared_outputs/ subdirectory
+                # Upload remaining logs to undeclared_outputs/ subdirectory
                 gcs_files += _upload_dir_to_gcs(
-                    mobly_dir, gcs_bucket,
+                    dir_to_upload,
+                    gcs_bucket,
                     gcs_dir.joinpath(_UNDECLARED_OUTPUTS).as_posix(),
                     args.gcs_upload_timeout
                 )
+            # Override target_id as needed
+            if args.cts:
+                test_result_info.target_id = mobly_dir.parent.name
+            if args.test_title:
+                test_result_info.target_id = args.test_title
+            # Upload target
             _add_resultstore_target(
                 rs_client,
                 gcs_bucket,
                 gcs_dir.as_posix(),
                 gcs_files,
                 test_result_info.status,
-                args.test_title or test_result_info.target_id,
+                test_result_info.target_id,
             )
             target_statuses.append(test_result_info.status)
     finally:

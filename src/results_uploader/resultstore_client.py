@@ -106,7 +106,7 @@ class ResultstoreClient:
     def _configured_target_name(self) -> str:
         """The resource name for the configured target."""
         if not self._target_name:
-            return
+            return ''
         return f'{self._target_name}/configuredTargets/{_DEFAULT_CONFIGURATION}'
 
     def set_status(self, status: Status) -> None:

@@ -21,6 +21,7 @@ import collections
 import dataclasses
 import datetime
 from importlib import resources
+import itertools
 import logging
 import mimetypes
 import os
@@ -542,7 +543,7 @@ def main(argv: list[str] | None = None) -> None:
     else:
         # Walk through all subdirectories that contain raw Mobly logs.
         mobly_dirs = []
-        for path in logs_dir.rglob('*'):
+        for path in itertools.chain(logs_dir.rglob('*'), [logs_dir]):
             if path.is_dir() and _get_summary_yaml_if_exists(path):
                 mobly_dirs.append(path)
 

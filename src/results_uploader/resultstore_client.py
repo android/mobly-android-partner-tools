@@ -82,7 +82,6 @@ class ResultstoreClient:
         self._invocation_id = ''
         self._authorization_token = ''
         self._target_id = ''
-        self._encoded_target_id = ''
 
         self._used_target_ids = collections.Counter()
 
@@ -94,6 +93,11 @@ class ResultstoreClient:
         if not self._invocation_id:
             return ''
         return f'invocations/{self._invocation_id}'
+
+    @property
+    def _encoded_target_id(self) -> str:
+        """The URL-encoded version of the target ID."""
+        return urllib.parse.quote(self._target_id, safe='')
 
     @property
     def _target_name(self) -> str:
@@ -197,7 +201,6 @@ class ResultstoreClient:
         else:
             self._target_id = target_id
         self._used_target_ids[target_id] += 1
-        self._encoded_target_id = urllib.parse.quote(self._target_id, safe='')
         target = {
             'id': {
                 'invocationId': self._invocation_id,
@@ -382,7 +385,6 @@ class ResultstoreClient:
         res = request.execute(http=self._http)
         logging.debug('invocations.targets.finalize: %s', res)
         self._target_id = ''
-        self._encoded_target_id = ''
 
     def merge_invocation(self, status: Status, labels: list[str]) -> None:
         """Merges an invocation.
@@ -430,10 +432,11 @@ class ResultstoreClient:
                 'showStatuses='
                 f'{",".join(str(status_code) for status_code in StatusCode)}'
             )
+            target_id = urllib.parse.quote(
+                next(self._used_target_ids.elements()), safe='')
             print(
                 f'See results in {_RESULTSTORE_BASE_LINK}/'
-                f'{self._invocation_name}/targets/'
-                f'{next(self._used_target_ids.elements())};'
+                f'{self._invocation_name}/targets/{target_id};'
                 f'config={_DEFAULT_CONFIGURATION}/tests;{show_statuses}'
             )
 

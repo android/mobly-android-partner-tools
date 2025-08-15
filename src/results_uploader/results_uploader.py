@@ -126,6 +126,12 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
              'otherwise.'
     )
     parser.add_argument(
+        '--cts',
+        action='store_true',
+        help='Upload a CTS log folder containing Mobly results. Adds '
+             'CTS-specific information to the upload.'
+    )
+    parser.add_argument(
         '--no_convert_result',
         action='store_true',
         help=(
@@ -227,14 +233,19 @@ def _retrieve_api_key(project_id: str) -> str | None:
 
 
 def _convert_results(
-        mobly_dir: pathlib.Path, dest_dir: pathlib.Path) -> _TestResultInfo:
+        mobly_dir: pathlib.Path,
+        resultstore_root_dir: pathlib.Path,
+        dest_dir: pathlib.Path
+) -> _TestResultInfo:
     """Converts Mobly test results into Resultstore test.xml and test.log."""
     test_result_info = _TestResultInfo()
     logging.info('Converting raw Mobly logs into Resultstore artifacts...')
     # Generate the test.xml
     mobly_yaml_path = _get_summary_yaml_if_exists(mobly_dir)
     if mobly_yaml_path:
-        test_xml = mobly_result_converter.convert(mobly_yaml_path, mobly_dir)
+        test_xml = mobly_result_converter.convert(
+            mobly_yaml_path, mobly_dir, resultstore_root_dir
+        )
         ElementTree.indent(test_xml)
         test_xml.write(
             str(dest_dir.joinpath(_TEST_XML)),
@@ -579,28 +590,38 @@ def main(argv: list[str] | None = None) -> None:
                     args.gcs_upload_timeout
                 )
             else:
+                dir_to_upload = mobly_dir.parent if args.cts else mobly_dir
                 # Generate and upload test.xml and test.log
                 with tempfile.TemporaryDirectory() as tmp:
                     converted_dir = pathlib.Path(tmp).joinpath(gcs_dir)
                     converted_dir.mkdir(parents=True)
-                    test_result_info = _convert_results(mobly_dir, converted_dir)
+                    test_result_info = _convert_results(
+                        mobly_dir, dir_to_upload, converted_dir
+                    )
                     gcs_files = _upload_dir_to_gcs(
                         converted_dir, gcs_bucket, gcs_dir.as_posix(),
                         args.gcs_upload_timeout
                     )
-                # Upload raw Mobly logs to undeclared_outputs/ subdirectory
+                # Upload remaining logs to undeclared_outputs/ subdirectory
                 gcs_files += _upload_dir_to_gcs(
-                    mobly_dir, gcs_bucket,
+                    dir_to_upload,
+                    gcs_bucket,
                     gcs_dir.joinpath(_UNDECLARED_OUTPUTS).as_posix(),
                     args.gcs_upload_timeout
                 )
+            # Override target_id as needed
+            if args.cts:
+                test_result_info.target_id = mobly_dir.parent.name
+            if args.test_title:
+                test_result_info.target_id = args.test_title
+            # Upload target
             _add_resultstore_target(
                 rs_client,
                 gcs_bucket,
                 gcs_dir.as_posix(),
                 gcs_files,
                 test_result_info.status,
-                args.test_title or test_result_info.target_id,
+                test_result_info.target_id,
             )
             target_statuses.append(test_result_info.status)
     finally:

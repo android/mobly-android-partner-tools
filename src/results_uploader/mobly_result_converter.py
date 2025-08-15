@@ -207,6 +207,7 @@ def _add_file_annotations(
         entry: Mapping[str, Any],
         properties_element: ElementTree.Element,
         mobly_base_directory: Optional[pathlib.Path],
+        resultstore_root_directory: Optional[pathlib.Path],
 ) -> None:
     """Adds file annotations for a Mobly test case files.
 
@@ -220,11 +221,14 @@ def _add_file_annotations(
       entry: Mobly summary entry for the test case.
       properties_element: Test case properties element.
       mobly_base_directory: Base directory of the Mobly test.
+      resultstore_root_directory: Root directory for Resultstore undeclared
+        outputs.
     """
     # If mobly_base_directory is not provided, the converter will not add the
     # annotations to associate the files with the test cases.
     if (
             mobly_base_directory is None
+            or resultstore_root_directory is None
             or entry.get(records.TestResultEnums.RECORD_SIGNATURE, None) is None
     ):
         return
@@ -240,7 +244,7 @@ def _add_file_annotations(
     for file_path in test_case_files:
         if not file_path.is_file():
             continue
-        relative_path = file_path.relative_to(mobly_base_directory)
+        relative_path = file_path.relative_to(resultstore_root_directory)
         _add_or_update_property_element(
             properties_element,
             f'test_output{file_counter}',
@@ -441,6 +445,7 @@ def _process_record(
         entry: Mapping[str, Any],
         reran_node: Optional[ReranNode],
         mobly_base_directory: Optional[pathlib.Path],
+        resultstore_root_directory: Optional[pathlib.Path],
 ) -> ElementTree.Element:
     """Processes a single Mobly test record entry to a Resultstore test case
     node.
@@ -451,6 +456,8 @@ def _process_record(
         if this test is part of a rerun chain.
       mobly_base_directory: Base directory for the Mobly test. Artifacts from
         the Mobly test will be saved here.
+      resultstore_root_directory: Root directory for Resultstore undeclared
+        outputs.
 
     Returns:
       A Resultstore XML node representing a single test case.
@@ -575,6 +582,7 @@ def _process_record(
         entry,
         properties_element,
         mobly_base_directory,
+        resultstore_root_directory
     )
 
     if entry[records.TestResultEnums.RECORD_UID] is not None:
@@ -672,6 +680,7 @@ def _process_record(
 def convert(
         mobly_results_path: pathlib.Path,
         mobly_base_directory: Optional[pathlib.Path] = None,
+        resultstore_root_directory: Optional[pathlib.Path] = None,
 ) -> ElementTree.ElementTree:
     """Converts a Mobly results summary file to Resultstore XML schema.
 
@@ -682,6 +691,8 @@ def convert(
     Args:
       mobly_results_path: Path to the Mobly summary YAML file.
       mobly_base_directory: Base directory of the Mobly test.
+      resultstore_root_directory: Root directory for Resultstore undeclared
+        outputs.
 
     Returns:
       A Resultstore XML tree for the Mobly test.
@@ -706,12 +717,13 @@ def convert(
     mobly_root_properties = _create_or_return_properties_element(
         mobly_test_root)
     # Add files under the Mobly root directory to the Mobly test suite node.
-    if mobly_base_directory is not None:
+    if (mobly_base_directory is not None
+            and resultstore_root_directory is not None):
         file_counter = 0
         for file_path in mobly_base_directory.iterdir():
             if not file_path.is_file():
                 continue
-            relative_path = file_path.relative_to(mobly_base_directory)
+            relative_path = file_path.relative_to(resultstore_root_directory)
             _add_or_update_property_element(
                 mobly_root_properties,
                 f'test_output{file_counter}',
@@ -767,7 +779,10 @@ def convert(
         else:
             reran_node = None
         class_elements[class_name].append(
-            _process_record(entry, reran_node, mobly_base_directory)
+            _process_record(
+                entry, reran_node, mobly_base_directory,
+                resultstore_root_directory
+            )
         )
 
     user_data_entries = [

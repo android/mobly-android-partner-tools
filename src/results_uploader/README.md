@@ -52,6 +52,18 @@ add the following command-line option:
 mobly_runner my_test_suite --upload_results
 ```
 
+## Batch uploading
+If you run
+```bash
+results_uploader <folder_containing_multiple_mobly_artifacts>
+```
+
+The tool automatically searches recursively for all Mobly artifact folders
+contained within this directory, and creates a single BTX link with sub-entries
+for each of the results.
+
+You may use this feature to quickly share a set of related Mobly runs.
+
 ## Troubleshooting
 
 * If the link is missing, or the contents of the link are empty, check the

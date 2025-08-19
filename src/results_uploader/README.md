@@ -59,8 +59,8 @@ results_uploader <folder_containing_multiple_mobly_artifacts>
 ```
 
 The tool automatically searches recursively for all Mobly artifact folders
-contained within this directory, and creates a single BTX link with sub-entries
-for each of the results.
+contained within this directory, and creates a single BTX link with a sub-entry
+for each folder.
 
 You may use this feature to quickly share a set of related Mobly runs.
 

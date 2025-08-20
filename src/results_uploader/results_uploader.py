@@ -554,6 +554,11 @@ def main(argv: list[str] | None = None) -> None:
                         and any(path.iterdir())):
                     cts_console_log_dir = path
 
+    # Exit early if there's nothing to upload
+    if not mobly_dirs and not cts_console_log_dir:
+        logging.warning('No logs to upload. Exiting.')
+        exit()
+
     # Configure local GCP parameters
     if args.reset_gcp_login:
         _run_gcloud_command(['auth', 'application-default', 'revoke', '-q'])

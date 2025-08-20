@@ -1,11 +1,21 @@
 # Mobly Android Partner Tools release history
 
+## 1.4.1 (2025-MM-DD)
+
+### Fixes
+* [results_uploader] Exit early if there is nothing to upload, preventing an
+  empty invocation from being created.
+
+
 ## 1.4.0 (2025-08-19)
+
+### New
 * [results_uploader] Enable batch uploading of multiple Mobly results.
   * Upload any directory containing one or more independent Mobly run logs, and
     the tool will generate a single link containing all of the results.
   * If the test was executed as part of Android CTS, use `--cts` mode to attach 
     CTS-specific data to the upload.
+
 
 ## 1.3.0 (2025-07-29)
 

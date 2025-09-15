@@ -63,7 +63,7 @@ _INSPECTOR_BASIC_URL = (
     + 'targetId={{targetId}};'
     + 'configurationId={{configurationId}};'
     + 'actionId={{actionId}};'
-    + 'testcase='
+    + 'testCase='
 )
 
 class MoblyResultstoreProperties(enum.Enum):

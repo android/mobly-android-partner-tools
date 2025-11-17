@@ -41,6 +41,7 @@ Please run `mobly_runner -h` for a full list of options.
 """
 
 import argparse
+import datetime
 import importlib.resources
 import json
 import os
@@ -305,6 +306,11 @@ def main() -> None:
         args.mobly_bin, args.tests, config, args.test_bed, args.log_path
     )
     end_time = int(time.time())
+    duration = end_time - start_time
+
+    _padded_print(
+        f'Tests complete. Total time: {datetime.timedelta(seconds=duration)}'
+    )
 
     # Clean up temporary dirs/files
     _clean_up()
@@ -317,7 +323,10 @@ def main() -> None:
     # Upload results to Resultstore, if requested by user
     if args.upload_results:
         _padded_print('Uploading test results to Resultstore/BTX.')
-        upload_args = [str(latest_logs)]
+        upload_args = [
+            str(latest_logs), '--start_time', str(start_time), '--duration',
+            str(duration)
+        ]
         if args.label_on_pass:
             upload_args += [
                 '--label', args.label_on_pass, '--label_on_pass_only'

@@ -17,11 +17,12 @@
 """Resultstore client for Mobly tests."""
 
 import collections
-import datetime
+import dataclasses
 import enum
 import importlib.metadata
 import logging
 import pathlib
+import time
 import urllib.parse
 import uuid
 
@@ -34,6 +35,15 @@ _DEFAULT_CONFIGURATION = 'default'
 _RESULTSTORE_BASE_LINK = 'https://btx.cloud.google.com'
 
 _PACKAGE_NAME = 'mobly-android-partner-tools'
+
+
+@dataclasses.dataclass
+class Timing:
+    """Timing data for a given invocation/target/action."""
+    # Start time (in seconds since Epoch)
+    start_time: int
+    # Duration (in seconds)
+    duration: int
 
 
 class Status(enum.Enum):
@@ -117,8 +127,11 @@ class ResultstoreClient:
         """Sets the overall test run status."""
         self._status = status
 
-    def create_invocation(self) -> str:
+    def create_invocation(self, test_timing: Timing | None) -> str:
         """Creates an invocation.
+
+        Args:
+          test_timing: The start time and duration of the full test run.
 
         Returns:
           The invocation ID.
@@ -130,10 +143,25 @@ class ResultstoreClient:
                 self._invocation_id,
             )
             return None
+        # If actual test time is provided, use that as the invocation timing.
+        # Otherwise, record the uploader's start time instead.
+        if test_timing:
+            timing = {
+                'startTime': {
+                    'seconds': test_timing.start_time,
+                },
+                'duration': {
+                    'seconds': test_timing.duration,
+                }
+            }
+        else:
+            timing = {
+                'startTime': {
+                    'seconds': int(time.time()),
+                },
+            }
         invocation = {
-            'timing': {
-                'startTime': datetime.datetime.utcnow().isoformat() + 'Z'
-            },
+            'timing': timing,
             'invocationAttributes': {
                 'projectId': self._project_id,
             },

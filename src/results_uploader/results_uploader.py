@@ -152,6 +152,12 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
     parser.add_argument(
         '-v', '--verbose', action='store_true', help='Enable debug logs.'
     )
+    parser.add_argument(
+        '--start_time', type=int, help=argparse.SUPPRESS
+    )
+    parser.add_argument(
+        '--duration', type=int, help=argparse.SUPPRESS
+    )
     return parser.parse_args(args=argv or sys.argv[1:])
 
 
@@ -491,10 +497,11 @@ def _start_resultstore_client(
 
 def _create_resultstore_invocation(
         client: resultstore_client.ResultstoreClient,
+        test_timing: resultstore_client.Timing | None,
 ) -> None:
     """Calls the Resultstore Upload API to generate a new invocation."""
     logging.info('Creating Resultstore invocation...')
-    client.create_invocation()
+    client.create_invocation(test_timing)
     client.create_default_configuration()
 
 
@@ -589,7 +596,10 @@ def main(argv: list[str] | None = None) -> None:
         else args.gcs_dir
     )
 
-    _create_resultstore_invocation(rs_client)
+    test_timing = None
+    if args.start_time:
+        test_timing = resultstore_client.Timing(args.start_time, args.duration)
+    _create_resultstore_invocation(rs_client, test_timing)
 
     # Upload CTS console log as invocation log
     if cts_console_log_dir:

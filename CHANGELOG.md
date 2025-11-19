@@ -1,5 +1,15 @@
 # Mobly Android Partner Tools release history
 
+## 1.5.0 (2025-11-18)
+
+### New
+* [mobly_runner] When uploading test results with the `-u` option, the runner
+  captures the true start time and duration, and adds them to the BTX invocation
+  details.
+* [results_uploader] Add a `gcloud_setup.py` script that enables users to
+  perform the first-time Google Cloud login as a standalone command.
+
+
 ## 1.4.2 (2025-09-15)
 
 ### Fixes

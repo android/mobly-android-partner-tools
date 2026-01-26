@@ -93,8 +93,9 @@ Google Cloud Storage bucket:
     ```
 
 3. If successful, at the end of the upload process you will get a link beginning
-   with http://btx.cloud.google.com. Simply share this link to others who
-   wish to view your test results.
+   with http://btx.cloud.google.com. You may 
+   [view your results](#view-your-results-in-btx) and share this link to others
+   who wish to view your test results.
 
 #### Automatically upload results upon test completion
 
@@ -121,6 +122,47 @@ contained within this directory, and creates a single BTX link with a sub-entry
 for each folder.
 
 You may use this feature to quickly share a set of related Mobly runs.
+
+### View your results in BTX
+
+When you open a BTX link, you should see the following dashboard:
+
+![image](docs/images/btx_target.png)
+
+1. Use this checkbox to show/hide test cases based on status (e.g. Failed,
+   Passed, Skipped).
+2. A list of test cases along with their results:
+   Green (passed), Red (failed), Orange (flaky), Grey (skipped). Click on the
+   test case name to display the details for that test.
+3. Click to open the Mobly Inspector debugging UI. See more details below.
+4. A list of test artifacts (log files, bugreports, videos) recorded from the
+   test case. Click to view/download the file contents.
+5. The test failure stacktrace, if the test failed.
+6. The test properties. You may find custom metadata or test metrics in this
+   section.
+
+When you open the Inspector page for a given test case, you will see a 
+time-synchronized view of the logs and/or screen captured on each device,
+depending on the test. This is a helpful tool to easily track events that occur
+across devices.
+
+* Click on the Play button at the top to start playback.
+* Click on any point in the timeline, or any log message, and all windows will
+  be synced to that timestamp.
+* You may enable text, log level, and tag filters at the top of each log window.
+
+<img src="docs/images/inspector.gif" width="1000">
+
+To view the history of all test results you uploaded on BTX, click on the 
+"GCP Project" at the top left of the page.
+
+![image](docs/images/btx_hist_view.png)
+
+If instead of the dashboard view, you see "No data to display." with a grey
+banner as shown below, there was an issue with the upload. Consult the
+[Troubleshooting](#troubleshooting) section for guidance.
+
+![image](docs/images/btx_upload_fail.png)
 
 ### Troubleshooting
 

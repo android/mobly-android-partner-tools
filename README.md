@@ -129,7 +129,7 @@ You may use this feature to quickly share a set of related Mobly runs.
 
 When you open a BTX link, you should see the following dashboard.
 
-![image](docs/images/btx_target.png)
+![target](docs/images/btx_target.png)
 
 1. Use this checkbox to show/hide test cases based on status (e.g. Failed,
    Passed, Skipped).
@@ -137,7 +137,9 @@ When you open a BTX link, you should see the following dashboard.
    Green (passed), Red (failed), Grey (skipped). Click on the test case name to
    display the details for that test.
    * For repeated test cases, the test case may also appear as Orange, which
-     indicates that it failed some but not all iterations (flaky).
+     indicates that it failed some but not all iterations (flaky). You may check
+     each individual iteration from the Repeats bar.
+     ![repeats](docs/images/btx_repeats.png)
 3. Click to open the Mobly Inspector debugging UI. See more details below.
 4. A list of test artifacts (log files, bugreports, videos) recorded from the
    test case. Click to view/download the file contents.
@@ -162,7 +164,7 @@ across devices.
 To view the history of all test results you uploaded on BTX, click on the 
 "GCP Project" at the top left of the page.
 
-![image](docs/images/btx_hist_view.png)
+![history](docs/images/btx_hist_view.png)
 
 ### Troubleshooting
 
@@ -170,17 +172,17 @@ If you see a warning indicating **"There is test suite information that is not
 visible in this view. Switch to Tree View to see test suites,"** you may switch
 to the correct Tree View by clicking on the indicated button.
 
-![image](docs/images/btx_tree_view.png)
+![tree view](docs/images/btx_tree_view.png)
 
 If you do not get a link at all after upload, or instead of the dashboard, you 
 see "No data to display." with a grey banner as shown below:
 
-![image](docs/images/btx_upload_fail.png)
+![upload fail](docs/images/btx_upload_fail.png)
 
-* Check the debug logs of the uploader. Its location is shown at the beginning
-  of the tool's output indicated by `Debug logs are saved to: ...`.
-* Report this issue to Google and attach all tool output, including the debug
-  logs.
+1. Check the debug logs of the uploader. Its location is shown at the beginning
+   of the tool's output indicated by `Debug logs are saved to: ...`.
+2. Report this issue to Google and attach all tool output, including the debug
+   logs.
 
 ### Additional reference
 

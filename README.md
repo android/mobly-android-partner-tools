@@ -93,9 +93,11 @@ Google Cloud Storage bucket:
     ```
 
 3. If successful, at the end of the upload process you will get a link beginning
-   with http://btx.cloud.google.com. You may 
-   [view your results](#view-your-results-in-btx) and share this link to others
-   who wish to view your test results.
+   with http://btx.cloud.google.com. 
+   You may [view your results](#view-your-results-in-btx) and share this link to others who wish to
+   view your test results.
+   * If you do not see a link, consult the [Troubleshooting](#troubleshooting)
+     section.
 
 #### Automatically upload results upon test completion
 
@@ -125,21 +127,25 @@ You may use this feature to quickly share a set of related Mobly runs.
 
 ### View your results in BTX
 
-When you open a BTX link, you should see the following dashboard:
+When you open a BTX link, you should see the following dashboard.
 
 ![image](docs/images/btx_target.png)
 
 1. Use this checkbox to show/hide test cases based on status (e.g. Failed,
    Passed, Skipped).
 2. A list of test cases along with their results:
-   Green (passed), Red (failed), Orange (flaky), Grey (skipped). Click on the
-   test case name to display the details for that test.
+   Green (passed), Red (failed), Grey (skipped). Click on the test case name to
+   display the details for that test.
+   * For repeated test cases, the test case may also appear as Orange, which
+     indicates that it failed some but not all iterations (flaky).
 3. Click to open the Mobly Inspector debugging UI. See more details below.
 4. A list of test artifacts (log files, bugreports, videos) recorded from the
    test case. Click to view/download the file contents.
 5. The test failure stacktrace, if the test failed.
 6. The test properties. You may find custom metadata or test metrics in this
    section.
+
+See [Troubleshooting](#troubleshooting) if you do not see the above elements.
 
 When you open the Inspector page for a given test case, you will see a 
 time-synchronized view of the logs and/or screen captured on each device,
@@ -158,19 +164,23 @@ To view the history of all test results you uploaded on BTX, click on the
 
 ![image](docs/images/btx_hist_view.png)
 
-If instead of the dashboard view, you see "No data to display." with a grey
-banner as shown below, there was an issue with the upload. Consult the
-[Troubleshooting](#troubleshooting) section for guidance.
+### Troubleshooting
+
+If you see a warning indicating **"There is test suite information that is not 
+visible in this view. Switch to Tree View to see test suites,"** you may switch
+to the correct Tree View by clicking on the indicated button.
+
+![image](docs/images/btx_tree_view.png)
+
+If you do not get a link at all after upload, or instead of the dashboard, you 
+see "No data to display." with a grey banner as shown below:
 
 ![image](docs/images/btx_upload_fail.png)
 
-### Troubleshooting
-
-* If the link is missing, or the contents of the link are empty, check the
-  debug logs of the uploader. Its location is shown at the beginning of the
-  tool's output indicated by `Debug logs are saved to: ...`.
-* Report any tool issues to Google and attach all tool output, including the
-  debug logs.
+* Check the debug logs of the uploader. Its location is shown at the beginning
+  of the tool's output indicated by `Debug logs are saved to: ...`.
+* Report this issue to Google and attach all tool output, including the debug
+  logs.
 
 ### Additional reference
 

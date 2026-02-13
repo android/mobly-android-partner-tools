@@ -36,6 +36,8 @@ _RESULTSTORE_BASE_LINK = 'https://btx.cloud.google.com'
 
 _PACKAGE_NAME = 'mobly-android-partner-tools'
 
+_RESULTSTORE_RESERVED_FILES = ('test.log', 'test.xml')
+
 
 @dataclasses.dataclass
 class Timing:
@@ -276,7 +278,8 @@ class ResultstoreClient:
         logging.debug('invocations.targets.configuredTargets.create: %s', res)
 
     def create_action(
-            self, gcs_bucket: str, gcs_dir: str, artifacts: list[str]
+            self, gcs_bucket: str, gcs_dir: str, artifacts: list[str],
+            assign_undeclared_outputs: bool = False
     ) -> str:
         """Creates an action.
 
@@ -285,6 +288,9 @@ class ResultstoreClient:
           gcs_dir: Base directory of the artifacts in the GCS bucket.
           artifacts: List of paths (relative to gcs_bucket) to the test
             artifacts.
+          assign_undeclared_outputs: Whether to assign artifacts to
+            undeclared_outputs. Special files for Resultstore, including
+            test.log and test.xml, would be skipped.
 
         Returns:
           The action ID.
@@ -295,6 +301,8 @@ class ResultstoreClient:
         files = []
         for path in artifacts:
             uid = str(pathlib.PurePosixPath(path).relative_to(gcs_dir))
+            if assign_undeclared_outputs and uid not in _RESULTSTORE_RESERVED_FILES:
+                uid = 'undeclared_outputs/' + uid
             uri = f'gs://{gcs_bucket}/{path}'
             files.append({'uid': uid, 'uri': uri})
         action = {

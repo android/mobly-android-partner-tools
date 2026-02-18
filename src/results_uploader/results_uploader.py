@@ -626,7 +626,7 @@ def main(argv: list[str] | None = None) -> None:
                 if args.link_existing_gcs_logs:
                     # Use already uploaded Mobly logs in GCS
                     logging.info('Using existing Mobly logs in GCS dir: %s', gcs_dir)
-                    gcs_files += [f'{gcs_dir}/{path}' for path in _get_file_paths_recursively(dir_to_upload)]
+                    gcs_files += [f'{gcs_dir.as_posix()}/{path}' for path in _get_file_paths_recursively(dir_to_upload)]
                 else:
                     # Upload Mobly logs to undeclared_outputs/ subdirectory
                     gcs_files += _upload_dir_to_gcs(

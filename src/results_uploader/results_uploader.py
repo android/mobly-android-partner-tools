@@ -112,6 +112,13 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
             f'Default: {_GCS_DEFAULT_TIMEOUT_SECS} seconds.'),
     )
     parser.add_argument(
+        '--link_existing_gcs_logs',
+        action='store_true',
+        help='Associates the invocation with a GCS directory that already '
+             'contains the uploaded Mobly logs, as specified by --gcs_dir. '
+             'The Mobly logs must be exactly the same as in logs_dir.'
+    )
+    parser.add_argument(
         '--test_title',
         help='Custom test title to display in the result UI.'
     )
@@ -391,6 +398,16 @@ def _get_test_result_info_from_test_xml(
     return test_result_info
 
 
+def _get_file_paths_recursively(dir_path: pathlib.Path) -> list[str]:
+    """Recursively gets all file paths in a directory."""
+    glob = dir_path.rglob('*')
+    return [
+        str(path.relative_to(dir_path).as_posix())
+        for path in glob
+        if path.is_file()
+    ]
+
+
 def _upload_dir_to_gcs(
         src_dir: pathlib.Path, gcs_bucket: str, gcs_dir: str, timeout: int
 ) -> list[str]:
@@ -403,12 +420,7 @@ def _upload_dir_to_gcs(
 
     bucket_obj = storage.Client().bucket(gcs_bucket)
 
-    glob = src_dir.rglob('*')
-    file_paths = [
-        str(path.relative_to(src_dir).as_posix())
-        for path in glob
-        if path.is_file()
-    ]
+    file_paths = _get_file_paths_recursively(src_dir)
 
     logging.info(
         'Uploading %s files from %s to Cloud Storage directory %s/%s...',
@@ -482,11 +494,12 @@ def _add_resultstore_target(
         file_paths: list[str],
         status: _Status,
         target_id: str | None,
+        assign_undeclared_outputs: bool = False,
 ) -> None:
     """Calls the Resultstore Upload API to create and populate a new target."""
     client.create_target(target_id)
     client.create_configured_target()
-    client.create_action(gcs_bucket, gcs_dir, file_paths)
+    client.create_action(gcs_bucket, gcs_dir, file_paths, assign_undeclared_outputs)
     client.merge_configured_target(status)
     client.finalize_configured_target()
     client.merge_target(status)
@@ -587,7 +600,7 @@ def main(argv: list[str] | None = None) -> None:
     target_statuses = []
     try:
         for idx, mobly_dir in enumerate(mobly_dirs):
-            gcs_dir = gcs_base_dir.joinpath(f'dir{idx}')
+            gcs_dir = gcs_base_dir.joinpath(f'dir{idx}') if not args.link_existing_gcs_logs else gcs_base_dir
             if args.no_convert_result:
                 # Determine the final status based on the test.xml
                 test_xml = ElementTree.parse(mobly_dir.joinpath(_TEST_XML))
@@ -610,13 +623,18 @@ def main(argv: list[str] | None = None) -> None:
                         converted_dir, gcs_bucket, gcs_dir.as_posix(),
                         args.gcs_upload_timeout
                     )
-                # Upload remaining logs to undeclared_outputs/ subdirectory
-                gcs_files += _upload_dir_to_gcs(
-                    dir_to_upload,
-                    gcs_bucket,
-                    gcs_dir.joinpath(_UNDECLARED_OUTPUTS).as_posix(),
-                    args.gcs_upload_timeout
-                )
+                if args.link_existing_gcs_logs:
+                    # Use already uploaded Mobly logs in GCS
+                    logging.info('Using existing Mobly logs in GCS dir: %s', gcs_dir)
+                    gcs_files += [f'{gcs_dir.as_posix()}/{path}' for path in _get_file_paths_recursively(dir_to_upload)]
+                else:
+                    # Upload Mobly logs to undeclared_outputs/ subdirectory
+                    gcs_files += _upload_dir_to_gcs(
+                        dir_to_upload,
+                        gcs_bucket,
+                        gcs_dir.joinpath(_UNDECLARED_OUTPUTS).as_posix(),
+                        args.gcs_upload_timeout
+                    )
             # Override target_id as needed
             if args.cts:
                 test_result_info.target_id = mobly_dir.parent.name
@@ -630,6 +648,7 @@ def main(argv: list[str] | None = None) -> None:
                 gcs_files,
                 test_result_info.status,
                 test_result_info.target_id,
+                args.link_existing_gcs_logs,
             )
             target_statuses.append(test_result_info.status)
     finally:

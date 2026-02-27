@@ -109,7 +109,7 @@ add the following command-line option:
 mobly_runner my_test_suite --upload_results
 ```
 
-**Note:** You must have completed the uploader 
+> **Note:** You must have completed the uploader 
 [First-time setup](#first-time-setup) prior to using this option, or the upload 
 will automatically be aborted.
 

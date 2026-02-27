@@ -1,5 +1,11 @@
 # Mobly Android Partner Tools release history
 
+## 1.5.1 (2026-02-26)
+
+### New
+* [results_uploader] Support linking a Resultstore invocation to GCS files
+  previously uploaded by other means.
+
 ## 1.5.0 (2025-11-18)
 
 ### New

@@ -109,7 +109,7 @@ add the following command-line option:
 mobly_runner my_test_suite --upload_results
 ```
 
-**Note:** You must have completed the uploader 
+> **Note:** You must have completed the uploader 
 [First-time setup](#first-time-setup) prior to using this option, or the upload 
 will automatically be aborted.
 
@@ -163,6 +163,8 @@ across devices.
 
 To view the history of all test results you uploaded on BTX, click on the 
 "GCP Project" at the top left of the page.
+
+> **Note:** If no results appear, click inside the search bar and press Enter.
 
 ![history](docs/images/btx_hist_view.png)
 

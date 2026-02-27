@@ -162,7 +162,8 @@ across devices.
 <img src="docs/images/inspector.gif" width="1000">
 
 To view the history of all test results you uploaded on BTX, click on the 
-"GCP Project" at the top left of the page.
+"GCP Project" at the top left of the page. If no results appear, click inside the
+search bar and press Enter.
 
 ![history](docs/images/btx_hist_view.png)
 

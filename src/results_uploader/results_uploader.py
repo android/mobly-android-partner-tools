@@ -165,7 +165,8 @@ def _parse_args(argv: list[str] | None) -> argparse.Namespace:
         '--duration', type=int, help=argparse.SUPPRESS
     )
     parser.add_argument(
-        '--abort_if_no_creds', action='store_true', help=argparse.SUPPRESS
+        '--no_interactive', '--abort_if_no_creds', action='store_true',
+        help=argparse.SUPPRESS
     )
     return parser.parse_args(args=argv or sys.argv[1:])
 
@@ -488,7 +489,7 @@ def _create_resultstore_invocation(
 
 
 def _add_resultstore_target(
-        client: resultstore_client.ResultstoreClient,
+        client: resultstore_client.ResultstoreClient | None,
         gcs_bucket: str,
         gcs_dir: str,
         file_paths: list[str],
@@ -497,6 +498,8 @@ def _add_resultstore_target(
         assign_undeclared_outputs: bool = False,
 ) -> None:
     """Calls the Resultstore Upload API to create and populate a new target."""
+    if not client:
+        return
     client.create_target(target_id)
     client.create_configured_target()
     client.create_action(gcs_bucket, gcs_dir, file_paths, assign_undeclared_outputs)
@@ -507,11 +510,13 @@ def _add_resultstore_target(
 
 
 def _finalize_resultstore_invocation(
-        client: resultstore_client.ResultstoreClient,
+        client: resultstore_client.ResultstoreClient | None,
         status: _Status,
         labels: list[str],
 ):
     """Updates the final status of the invocation and completes the upload."""
+    if not client:
+        return
     client.merge_invocation(status, labels)
     client.finalize_invocation()
 
@@ -557,9 +562,9 @@ def main(argv: list[str] | None = None) -> None:
     try:
         creds, project_id = google.auth.default()
     except google.auth.exceptions.DefaultCredentialsError:
-        if args.abort_if_no_creds:
+        if args.no_interactive:
             logging.error(
-                'No local credentials found (and abort_if_no_creds==True); '
+                'No local credentials found (and no_interactive==True); '
                 'aborting upload. Please run gcloud_setup.py to login first.'
             )
             exit(1)
@@ -586,7 +591,14 @@ def main(argv: list[str] | None = None) -> None:
     test_timing = None
     if args.start_time:
         test_timing = resultstore_client.Timing(args.start_time, args.duration)
-    _create_resultstore_invocation(rs_client, test_timing)
+    try:
+        _create_resultstore_invocation(rs_client, test_timing)
+    except Exception as e:
+        if args.no_interactive:
+            logging.warning('Resultstore API error. Continuing with GCS upload only. Error: %s', e)
+            rs_client = None
+        else:
+            raise
 
     # Upload CTS console log as invocation log
     if cts_console_log_dir:
@@ -594,7 +606,7 @@ def main(argv: list[str] | None = None) -> None:
             cts_console_log_dir, gcs_bucket, gcs_base_dir.as_posix(),
             args.gcs_upload_timeout
         )
-        if gcs_files:
+        if gcs_files and rs_client:
             rs_client.add_invocation_log(gcs_bucket, gcs_files[0])
 
     target_statuses = []
@@ -652,7 +664,8 @@ def main(argv: list[str] | None = None) -> None:
             )
             target_statuses.append(test_result_info.status)
     finally:
-        logging.info('Generating final Resultstore link...')
+        if rs_client:
+            logging.info('Generating final Resultstore link...')
         invocation_status = _aggregate_subtest_results(target_statuses)
         labels = args.label
         if args.label_on_pass_only:

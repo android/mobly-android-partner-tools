@@ -1,5 +1,11 @@
 # Mobly Android Partner Tools release history
 
+## 1.5.2 (2026-04-21)
+
+### New
+* [results_uploader] In non-interactive mode, continue to upload to GCS even if
+  the initial Resultstore invocation creation fails.
+
 ## 1.5.1 (2026-02-26)
 
 ### New

@@ -67,7 +67,8 @@ Google Cloud Storage bucket:
 
 1. Confirm/request access to the shared GCP project with your Google contact.
    The Googler will give you a project name to use.
-2. Install the gcloud CLI from https://cloud.google.com/sdk/docs/install
+2. Install the gcloud CLI from https://docs.cloud.google.com/sdk/docs/install-sdk#latest-version
+    * Skip the "Before you begin" steps.
     * If installation fails with the above method, try the alternative linked
       [here](https://cloud.google.com/sdk/docs/downloads-versioned-archives#installation_instructions).
 3. Download and execute [this script](src/results_uploader/gcloud_setup.py) to

@@ -31,7 +31,8 @@ def _run_gcloud_command(args: list[str]) -> None:
     except FileNotFoundError:
         logging.error(
             'Failed to run `gcloud` commands! Please install the `gcloud` CLI '
-            'from https://cloud.google.com/sdk/docs/install\n')
+            'from https://docs.cloud.google.com/sdk/docs/install-sdk#latest-version. '
+            '(Skip the "Before you begin" steps.) \n')
         raise
 
 

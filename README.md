@@ -171,11 +171,15 @@ To view the history of all test results you uploaded on BTX, click on the
 
 ### Troubleshooting
 
+#### Tree view
+
 If you see a warning indicating **"There is test suite information that is not 
 visible in this view. Switch to Tree View to see test suites,"** you may switch
 to the correct Tree View by clicking on the indicated button.
 
 ![tree view](docs/images/btx_tree_view.png)
+
+#### Missing results
 
 If you do not get a link at all after upload, or instead of the dashboard, you 
 see "No data to display." with a grey banner as shown below:
@@ -186,6 +190,18 @@ see "No data to display." with a grey banner as shown below:
    of the tool's output indicated by `Debug logs are saved to: ...`.
 2. Report this issue to Google and attach all tool output, including the debug
    logs.
+
+#### Wrong GCP project
+
+If you observe during upload that the project is different from the one you
+entered, e.g.
+
+```
+Current GCP project ID: <wrong-gcp-project>
+```
+
+Run the upload command with `--reset_gcp_login` to restart the first-time
+setup process, then enter the correct GCP project name.
 
 ### Additional reference
 

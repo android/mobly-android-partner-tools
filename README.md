@@ -200,8 +200,9 @@ entered, e.g.
 Current GCP project ID: <wrong-gcp-project>
 ```
 
-Run the upload command with `--reset_gcp_login` to restart the first-time
-setup process, then enter the correct GCP project name.
+Run the upload command with the `--reset_gcp_login` flag (e.g.,
+`results_uploader <artifacts_folder> --reset_gcp_login`) to restart the
+first-time setup process, then enter the correct GCP project ID.
 
 ### Additional reference
 

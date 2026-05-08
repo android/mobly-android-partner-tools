@@ -65,7 +65,7 @@ non-Google accounts), allowing for easy tracking and debugging.
 Test results are uploaded to a dedicated GCP project for your organization.
 
 Confirm/request access to your organization's GCP project with your Google contact. The
-Googler will give you the right project name to use for setting up.
+Googler will give you the right Project ID to use for setting up.
 
 ### First-time setup
 

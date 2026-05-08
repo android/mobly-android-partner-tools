@@ -60,18 +60,22 @@ results in an organized way on a dedicated web UI (Resultstore/BTX). The result
 URL can then be shared to anyone who is given access (including both Google and 
 non-Google accounts), allowing for easy tracking and debugging.
 
+### Before you start
+
+Test results are uploaded to a dedicated GCP project for your organization.
+
+Confirm/request access to your organization's GCP project with your Google contact. The
+Googler will give you the right project name to use for setting up.
+
 ### First-time setup
 
-To start using the Results Uploader, you need to be able to access the shared
-Google Cloud Storage bucket:
+To start using the Results Uploader, you need to set up local credentials for GCP:
 
-1. Confirm/request access to the shared GCP project with your Google contact.
-   The Googler will give you a project name to use.
-2. Install the gcloud CLI from https://docs.cloud.google.com/sdk/docs/install-sdk#latest-version
+1. Install the gcloud CLI from https://docs.cloud.google.com/sdk/docs/install-sdk#latest-version
     * Skip the "Before you begin" steps.
     * If installation fails with the above method, try the alternative linked
       [here](https://cloud.google.com/sdk/docs/downloads-versioned-archives#installation_instructions).
-3. Download and execute [this script](src/results_uploader/gcloud_setup.py) to
+2. Download and execute [this script](src/results_uploader/gcloud_setup.py) to
    log into the GCP project, and set up local credentials.
 
 ### How to upload results

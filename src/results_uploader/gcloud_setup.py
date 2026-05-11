@@ -50,7 +50,7 @@ def gcloud_login_and_set_project() -> None:
     _run_gcloud_command(
         [
             'auth', 'application-default', 'login', '--no-launch-browser',
-            '--scopes="https://www.googleapis.com/auth/cloud-platform"`
+            '--scopes="https://www.googleapis.com/auth/cloud-platform"'
         ]
     )
     _run_gcloud_command(

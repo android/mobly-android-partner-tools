@@ -48,7 +48,10 @@ def gcloud_login_and_set_project() -> None:
         ['config', 'set', 'project', project_id]
     )
     _run_gcloud_command(
-        ['auth', 'application-default', 'login', '--no-launch-browser']
+        [
+            'auth', 'application-default', 'login', '--no-launch-browser',
+            '--scopes="https://www.googleapis.com/auth/cloud-platform"`
+        ]
     )
     _run_gcloud_command(
         ['auth', 'application-default', 'set-quota-project', project_id]

@@ -169,7 +169,7 @@ def _find_all_elements(
     if test_name is not None:
         xpath += (
             f'/{ResultstoreTreeTags.TESTCASE.value}'
-            f'[@{ResultstoreTreeAttributes.NAME.value}="{test_name}"]'
+            f'[@{ResultstoreTreeAttributes.RERAN_TEST_NAME.value}="{test_name}"]'
         )
 
     yield from mobly_root.iterfind(xpath)

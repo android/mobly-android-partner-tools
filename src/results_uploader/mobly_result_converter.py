@@ -167,12 +167,15 @@ def _find_all_elements(
     if class_name is not None:
         xpath += f'[@{ResultstoreTreeAttributes.NAME.value}="{class_name}"]'
     if test_name is not None:
-        xpath += (
-            f'/{ResultstoreTreeTags.TESTCASE.value}'
-            f'[@{ResultstoreTreeAttributes.RERAN_TEST_NAME.value}="{test_name}"]'
-        )
-
-    yield from mobly_root.iterfind(xpath)
+        xpath += f'/{ResultstoreTreeTags.TESTCASE.value}'
+        for element in mobly_root.iterfind(xpath):
+            if (
+                element.get(ResultstoreTreeAttributes.NAME.value) == test_name
+                or element.get(ResultstoreTreeAttributes.RERAN_TEST_NAME.value) == test_name
+            ):
+                yield element
+    else:
+        yield from mobly_root.iterfind(xpath)
 
 
 def _create_or_return_properties_element(

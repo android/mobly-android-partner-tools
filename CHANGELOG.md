@@ -1,5 +1,11 @@
 # Mobly Android Partner Tools release history
 
+## 1.5.4 (2026-08-11)
+
+### Fixes
+* Fix `pipdeptree` version to under 4.0.0 to prevent Rust compatibilty issues.
+
+
 ## 1.5.3 (2026-07-15)
 
 ### Fixes
